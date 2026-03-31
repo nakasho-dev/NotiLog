@@ -1,0 +1,163 @@
+# NotiLog
+
+> **Android 端末に届くすべての通知を、安全にローカル記録するプライバシーファースト通知ログアプリ**
+
+[![Platform](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com)
+[![API](https://img.shields.io/badge/API-29%2B-brightgreen.svg)](https://developer.android.com/studio/releases/platforms)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+---
+
+## ✨ 特長
+
+| | |
+|---|---|
+| 🔒 **完全オフライン** | ネットワーク通信を一切行わず、`INTERNET` パーミッションすら宣言しない |
+| 🛡️ **暗号化保存** | Room + SQLCipher による AES-256 暗号化 DB。鍵は Android Keystore で管理 |
+| 📋 **全通知キャプチャ** | `NotificationListenerService` でサイレント通知を含む全通知を記録 |
+| 🔍 **全文検索** | FTS4 + unicode61 トークナイザで日本語対応の高速検索 |
+| 🏷️ **タグ管理** | アプリ単位でタグを付与し、過去ログ全体に即時反映 |
+| 📊 **通知種別分類** | リモート/ローカル/サイレント/常駐など 7 種別を自動判定・表示 |
+| 💾 **バックアップ** | 暗号化 JSON で SAF 経由エクスポート/インポート |
+
+---
+
+## 📱 スクリーンショット
+
+> ※ スクリーンショットを追加してください
+
+---
+
+## 🏗️ アーキテクチャ
+
+```
+UI Layer (Jetpack Compose + Material 3)
+    ↕ Flow<UiState>
+ViewModel Layer (Hilt)
+    ↕
+Repository Layer (Interface + Impl)
+    ↕
+Data Layer (Room + SQLCipher / FTS4)
+```
+
+- **MVVM + Repository パターン**
+- **Hilt** による依存性注入
+- **Room Flow** によるリアクティブなデータ更新
+
+---
+
+## 📦 通知種別の自動分類
+
+NotiLog は受信した通知を以下の 7 種別にヒューリスティクスで自動分類します：
+
+| 種別 | アイコン | 判定条件 |
+|---|---|---|
+| **常駐** | 📌 | `FLAG_FOREGROUND_SERVICE` |
+| **進行中** | ▶️ | `FLAG_ONGOING_EVENT`（FS 以外） |
+| **グループ** | 📚 | `FLAG_GROUP_SUMMARY` |
+| **リモート** | ☁️ | FCM/GCM マーカーキーが extras に存在 |
+| **リモート静音** | 🔇☁️ | FCM マーカー + 低優先度 (LOW/MIN) |
+| **ローカル** | 📱 | 上記いずれにも該当しない |
+| **サイレント** | 🔕 | FCM マーカーなし + 低優先度 |
+
+---
+
+## 🔧 技術スタック
+
+| カテゴリ | 技術 |
+|---|---|
+| 言語 | Kotlin |
+| UI | Jetpack Compose + Material 3 (Material You) |
+| DI | Hilt (Dagger) |
+| DB | Room + SQLCipher |
+| 全文検索 | SQLite FTS4 (unicode61 トークナイザ) |
+| 画面遷移 | Navigation Compose |
+| シリアライズ | Kotlin Serialization |
+| 暗号化 | Android Keystore + AES-GCM / PBKDF2 |
+| ビルド | Gradle (Kotlin DSL) + Version Catalog |
+| テスト | JUnit 4 + MockK + Turbine + Robolectric |
+
+---
+
+## 📋 必要条件
+
+- Android 10 (API 29) 以上
+- 通知へのアクセス権限（`NotificationListenerService`）
+
+---
+
+## 🚀 ビルド方法
+
+```bash
+# リポジトリをクローン
+git clone https://github.com/your-username/NotiLog.git
+cd NotiLog
+
+# デバッグビルド
+./gradlew assembleDebug
+
+# テスト実行
+./gradlew testDebugUnitTest
+```
+
+---
+
+## 📁 プロジェクト構成
+
+```
+app/src/main/java/org/ukky/notilog/
+├── NotiLogApplication.kt          # @HiltAndroidApp
+├── MainActivity.kt                # Single Activity
+├── data/
+│   ├── db/
+│   │   ├── NotiLogDatabase.kt     # Room Database (v3)
+│   │   ├── DatabaseProvider.kt    # SQLCipher 暗号化 DB 提供
+│   │   ├── entity/
+│   │   │   ├── NotificationEntity.kt
+│   │   │   ├── NotificationFtsEntity.kt
+│   │   │   ├── NotificationType.kt    # 7種別 enum
+│   │   │   └── AppTagEntity.kt
+│   │   └── dao/
+│   ├── repository/
+│   └── crypto/
+│       └── KeyStoreManager.kt
+├── service/
+│   └── NotiLogListenerService.kt  # 通知キャプチャ
+├── ui/
+│   ├── screen/                    # 各画面 (Compose)
+│   ├── component/                 # 共通 UI コンポーネント
+│   └── theme/
+├── di/
+│   └── AppModule.kt              # Hilt Module
+└── util/
+    ├── SignatureGenerator.kt      # SHA-256 重複判定
+    └── NotificationExtractor.kt   # 通知→Entity 変換 + 種別分類
+```
+
+---
+
+## 🔐 セキュリティ設計
+
+- **DB 暗号化**: SQLCipher (AES-256-CBC)。パスフレーズは Android Keystore で管理
+- **バックアップ暗号化**: ユーザーパスワードから PBKDF2 (210,000 iterations) で導出した鍵で AES-256-GCM 暗号化
+- **ネットワーク遮断**: `INTERNET` パーミッション未宣言。通信コード自体が存在しない
+- **auto backup 無効**: `android:allowBackup="false"` で ADB 経由のデータ抽出を防止
+
+---
+
+## 📄 ドキュメント
+
+- [基本設計書](docs/DESIGN.md)
+- [シーケンス図: 通知受信〜保存フロー](docs/sequence-notification-capture.md)
+
+---
+
+## 📜 ライセンス
+
+このプロジェクトは [MIT License](LICENSE) の下で公開されています。
+
+---
+
+## 🤝 コントリビュート
+
+Issue や Pull Request は歓迎します。大きな変更を加える前に、まず Issue で議論してください。

@@ -1,0 +1,53 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!--
+        NotiLog Monochrome Icon for Material You Themed Icons
+        Bubble shape with log lines cut out (evenOdd fill)
+        System will tint this with wallpaper-derived color
+    -->
+
+    <path
+        android:fillColor="#000000"
+        android:fillType="evenOdd"
+        android:pathData="
+            M35,24
+            h38
+            c3.9,0 7,3.1 7,7
+            v28
+            c0,3.9 -3.1,7 -7,7
+            h-27
+            l-10,10
+            3,-10
+            h-4
+            c-3.9,0 -7,-3.1 -7,-7
+            v-28
+            c0,-3.9 3.1,-7 7,-7
+            z
+            M37,35.6 L71,35.6
+            C71.77,35.6 72.4,36.23 72.4,37
+            C72.4,37.77 71.77,38.4 71,38.4
+            L37,38.4
+            C36.23,38.4 35.6,37.77 35.6,37
+            C35.6,36.23 36.23,35.6 37,35.6
+            Z
+            M37,44.6 L63,44.6
+            C63.77,44.6 64.4,45.23 64.4,46
+            C64.4,46.77 63.77,47.4 63,47.4
+            L37,47.4
+            C36.23,47.4 35.6,46.77 35.6,46
+            C35.6,45.23 36.23,44.6 37,44.6
+            Z
+            M37,53.6 L55,53.6
+            C55.77,53.6 56.4,54.23 56.4,55
+            C56.4,55.77 55.77,56.4 55,56.4
+            L37,56.4
+            C36.23,56.4 35.6,55.77 35.6,55
+            C35.6,54.23 36.23,53.6 37,53.6
+            Z" />
+
+</vector>
+
