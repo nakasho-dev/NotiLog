@@ -19,6 +19,7 @@
 | 🏷️ **タグ管理** | 通知実績のある全アプリを一覧表示し、アプリ単位でタグを追加・編集・削除。過去ログ全体に即時反映 |
 | 📊 **通知種別分類** | リモート/ローカル/サイレント/常駐など 7 種別を自動判定・表示 |
 | 💾 **バックアップ** | 暗号化 JSON で SAF 経由エクスポート/インポート |
+| 📤 **JSONL エクスポート** | 全件またはタグ絞り込みで通知ログを JSON Lines 形式でエクスポート。データ分析・加工用途に対応 |
 | 📄 **JSON 生データ表示** | 通知受信時の Android OS 由来の生データ（`StatusBarNotification` の全フィールド）を整形 JSON でシンタックスハイライト表示＋ワンタップコピー。デバッグ用途に最適 |
 
 ---
@@ -147,6 +148,8 @@ app/src/main/java/org/ukky/notilog/
 │   └── theme/
 ├── di/
 │   └── AppModule.kt              # Hilt Module
+├── export/
+│   └── JsonlExporter.kt          # JSONL エクスポート（1通知=1行）
 └── util/
     ├── SignatureGenerator.kt      # SHA-256 重複判定
     └── NotificationExtractor.kt   # 通知→Entity 変換 + 種別分類
@@ -169,6 +172,7 @@ app/src/main/java/org/ukky/notilog/
 - [シーケンス図: 通知受信〜保存フロー](docs/sequence-notification-capture.md)
 - [シーケンス図: タグ管理フロー](docs/sequence-tag-management.md)
 - [シーケンス図: OSSライセンス表示フロー](docs/sequence-oss-licenses.md)
+- [シーケンス図: JSONL エクスポートフロー](docs/sequence-jsonl-export.md)
 
 ---
 

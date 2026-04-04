@@ -62,6 +62,10 @@ class NotificationRepositoryImpl @Inject constructor(
     override suspend fun getAllForBackup(): List<NotificationEntity> =
         dao.getAllForBackup()
 
+    override suspend fun getForExport(tag: String?): List<NotificationWithTag> =
+        if (tag == null) dao.getAllWithTagList()
+        else dao.getByTagList(tag)
+
     override fun getDistinctPackageNames(): Flow<List<String>> =
         dao.getDistinctPackageNames()
 

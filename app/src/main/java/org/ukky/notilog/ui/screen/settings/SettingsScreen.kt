@@ -27,9 +27,14 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val tags by viewModel.tags.collectAsStateWithLifecycle()
 
     var showPasswordDialog by remember { mutableStateOf<PasswordDialogMode?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // JSONL エクスポート用タグ選択状態
+    var selectedExportTag by remember { mutableStateOf<String?>(null) }
+    val currentSelectedExportTag by rememberUpdatedState(selectedExportTag)
 
     // SAF launchers
     val exportLauncher = rememberLauncherForActivityResult(
@@ -42,6 +47,12 @@ fun SettingsScreen(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) showPasswordDialog = PasswordDialogMode.Import(uri)
+    }
+
+    val jsonlExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/x-ndjson")
+    ) { uri ->
+        if (uri != null) viewModel.exportJsonl(context, uri, currentSelectedExportTag)
     }
 
     // 通知リスナー権限の確認
@@ -114,6 +125,37 @@ fun SettingsScreen(
                         ) {
                             Text(if (state.isImporting) "インポート中…" else "インポート")
                         }
+                    }
+                }
+            }
+
+            // ── JSONL エクスポート ────
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("JSONLエクスポート", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "通知ログを JSON Lines 形式で書き出します。タグを選択すると絞り込みエクスポートが可能です。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+
+                    // タグ選択ドロップダウン
+                    TagFilterDropdown(
+                        tags = tags,
+                        selectedTag = selectedExportTag,
+                        onTagSelected = { selectedExportTag = it },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { jsonlExportLauncher.launch("notilog_export.jsonl") },
+                        enabled = !state.isJsonlExporting,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(if (state.isJsonlExporting) "エクスポート中…" else "JSONLエクスポート")
                     }
                 }
             }
@@ -205,6 +247,62 @@ fun SettingsScreen(
                 TextButton(onClick = { showPasswordDialog = null }) { Text("キャンセル") }
             },
         )
+    }
+}
+
+/**
+ * タグフィルタ用の選択ドロップダウン。
+ *
+ * @param tags 選択可能なタグ一覧
+ * @param selectedTag 現在選択されているタグ（null = すべて）
+ * @param onTagSelected タグ選択時コールバック（null = すべて）
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TagFilterDropdown(
+    tags: List<String>,
+    selectedTag: String?,
+    onTagSelected: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier,
+    ) {
+        OutlinedTextField(
+            value = selectedTag ?: "すべて",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("タグでフィルタ") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text("すべて") },
+                onClick = {
+                    onTagSelected(null)
+                    expanded = false
+                },
+            )
+            tags.forEach { tag ->
+                DropdownMenuItem(
+                    text = { Text(tag) },
+                    onClick = {
+                        onTagSelected(tag)
+                        expanded = false
+                    },
+                )
+            }
+        }
     }
 }
 

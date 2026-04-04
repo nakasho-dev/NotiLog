@@ -22,6 +22,12 @@ interface NotificationRepository {
     suspend fun deleteById(id: Long)
     suspend fun deleteAll()
     suspend fun getAllForBackup(): List<NotificationEntity>
+    /**
+     * JSONL エクスポート用に通知一覧をタグ情報付きで取得する。
+     *
+     * @param tag null の場合は全件、非 null の場合は指定タグでフィルタ
+     */
+    suspend fun getForExport(tag: String?): List<NotificationWithTag>
     fun getDistinctPackageNames(): Flow<List<String>>
 }
 

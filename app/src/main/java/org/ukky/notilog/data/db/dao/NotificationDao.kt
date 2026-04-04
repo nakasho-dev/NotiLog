@@ -97,6 +97,29 @@ interface NotificationDao {
     @Query("SELECT * FROM notifications ORDER BY last_received_at DESC")
     suspend fun getAllForBackup(): List<NotificationEntity>
 
+    // ── JSONL エクスポート用（非Flow / 一括取得） ────
+
+    @Query(
+        """
+        SELECT n.*, a.tag, a.app_label
+        FROM notifications n
+        LEFT JOIN app_tags a ON n.package_name = a.package_name
+        ORDER BY n.last_received_at DESC
+        """
+    )
+    suspend fun getAllWithTagList(): List<NotificationWithTag>
+
+    @Query(
+        """
+        SELECT n.*, a.tag, a.app_label
+        FROM notifications n
+        INNER JOIN app_tags a ON n.package_name = a.package_name
+        WHERE a.tag = :tag
+        ORDER BY n.last_received_at DESC
+        """
+    )
+    suspend fun getByTagList(tag: String): List<NotificationWithTag>
+
     // ── 通知実績アプリ一覧（タグ管理用） ────────────
 
     @Query("SELECT DISTINCT package_name FROM notifications ORDER BY package_name")

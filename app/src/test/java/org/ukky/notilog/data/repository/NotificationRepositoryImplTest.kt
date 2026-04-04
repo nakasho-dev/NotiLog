@@ -165,6 +165,45 @@ class NotificationRepositoryImplTest {
         coVerify { dao.deleteAll() }
     }
 
+    // ── JSONL エクスポート用一括取得 ─────────────────────
+
+    @Test
+    fun `getForExport_tagNull_全件をAllWithTagListから取得する`() = runTest {
+        val allItems = listOf(
+            NotificationWithTag(createEntity(signature = "e1"), "SNS", "App1"),
+            NotificationWithTag(createEntity(signature = "e2"), null, null),
+        )
+        coEvery { dao.getAllWithTagList() } returns allItems
+
+        val result = repository.getForExport(null)
+        assertEquals(2, result.size)
+        coVerify(exactly = 1) { dao.getAllWithTagList() }
+        coVerify(exactly = 0) { dao.getByTagList(any()) }
+    }
+
+    @Test
+    fun `getForExport_tag指定_指定タグでフィルタした一覧を取得する`() = runTest {
+        val filtered = listOf(
+            NotificationWithTag(createEntity(signature = "e3"), "仕事", "SlackApp"),
+        )
+        coEvery { dao.getByTagList("仕事") } returns filtered
+
+        val result = repository.getForExport("仕事")
+        assertEquals(1, result.size)
+        assertEquals("仕事", result[0].tag)
+        coVerify(exactly = 0) { dao.getAllWithTagList() }
+        coVerify(exactly = 1) { dao.getByTagList("仕事") }
+    }
+
+    @Test
+    fun `getForExport_存在しないタグ_空リストが返る`() = runTest {
+        coEvery { dao.getByTagList("存在しないタグ") } returns emptyList()
+
+        val result = repository.getForExport("存在しないタグ")
+        assertTrue(result.isEmpty())
+        coVerify(exactly = 1) { dao.getByTagList("存在しないタグ") }
+    }
+
     // ── 通知実績パッケージ一覧 ──────────────────────────
 
     @Test

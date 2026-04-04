@@ -6,16 +6,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ukky.notilog.backup.BackupManager
+import org.ukky.notilog.data.repository.AppTagRepository
 import org.ukky.notilog.data.repository.NotificationRepository
+import org.ukky.notilog.export.JsonlExporter
 import javax.inject.Inject
 
 data class SettingsUiState(
     val isExporting: Boolean = false,
     val isImporting: Boolean = false,
+    val isJsonlExporting: Boolean = false,
     val message: String? = null,
 )
 
@@ -23,10 +28,20 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     private val backupManager: BackupManager,
     private val notificationRepo: NotificationRepository,
+    private val appTagRepo: AppTagRepository,
+    private val jsonlExporter: JsonlExporter,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    /** エクスポート対象のタグ選択肢（空文字列リスト、空の場合はタグなし）。 */
+    val tags: StateFlow<List<String>> = appTagRepo.getAllTags()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
 
     fun export(context: Context, uri: Uri, password: String) {
         viewModelScope.launch {
@@ -55,6 +70,35 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 通知ログを JSONL 形式でエクスポートする。
+     *
+     * @param context ContentResolver 取得用コンテキスト
+     * @param uri SAF が返す保存先 URI
+     * @param tag null の場合は全件、非 null の場合は指定タグのみ
+     */
+    fun exportJsonl(context: Context, uri: Uri, tag: String?) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isJsonlExporting = true, message = null)
+            try {
+                val items = notificationRepo.getForExport(tag)
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    jsonlExporter.export(items, out)
+                }
+                val suffix = if (tag != null) "（タグ: $tag）" else "（全件）"
+                _uiState.value = _uiState.value.copy(
+                    isJsonlExporting = false,
+                    message = "JSONLエクスポート完了$suffix: ${items.size}件",
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isJsonlExporting = false,
+                    message = "JSONLエクスポート失敗: ${e.message}",
+                )
+            }
+        }
+    }
+
     fun deleteAll() {
         viewModelScope.launch {
             notificationRepo.deleteAll()
@@ -66,4 +110,3 @@ class SettingsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(message = null)
     }
 }
-
