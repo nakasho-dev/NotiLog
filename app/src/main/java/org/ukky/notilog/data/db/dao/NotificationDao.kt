@@ -82,5 +82,10 @@ interface NotificationDao {
 
     @Query("SELECT * FROM notifications ORDER BY last_received_at DESC")
     suspend fun getAllForBackup(): List<NotificationEntity>
+
+    // ── 通知実績アプリ一覧（タグ管理用） ────────────
+
+    @Query("SELECT DISTINCT package_name FROM notifications ORDER BY package_name")
+    fun getDistinctPackageNames(): Flow<List<String>>
 }
 

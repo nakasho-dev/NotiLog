@@ -123,6 +123,21 @@ class NotificationRepositoryImplTest {
         coVerify { dao.deleteAll() }
     }
 
+    // ── 通知実績パッケージ一覧 ──────────────────────────
+
+    @Test
+    fun `通知実績のある全パッケージ名をFlowで取得できる`() = runTest {
+        every { dao.getDistinctPackageNames() } returns flowOf(listOf("com.a", "com.b"))
+
+        repository.getDistinctPackageNames().test {
+            val result = awaitItem()
+            assertEquals(2, result.size)
+            assertEquals("com.a", result[0])
+            assertEquals("com.b", result[1])
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     // ── ヘルパー ──────────────────────────────────────
 
     @Suppress("DEPRECATION")

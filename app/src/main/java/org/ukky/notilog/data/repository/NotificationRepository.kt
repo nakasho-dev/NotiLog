@@ -16,5 +16,6 @@ interface NotificationRepository {
     suspend fun deleteById(id: Long)
     suspend fun deleteAll()
     suspend fun getAllForBackup(): List<NotificationEntity>
+    fun getDistinctPackageNames(): Flow<List<String>>
 }
 

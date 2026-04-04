@@ -5,13 +5,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.ukky.notilog.data.db.entity.AppTagEntity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -21,7 +21,7 @@ fun TagManageScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var editTarget by remember { mutableStateOf<AppTagEntity?>(null) }
+    var editTarget by remember { mutableStateOf<TagManageItem?>(null) }
     var editTagText by remember { mutableStateOf("") }
 
     Scaffold(
@@ -42,7 +42,7 @@ fun TagManageScreen(
                 modifier = Modifier.padding(innerPadding).fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("タグ付きアプリはまだありません")
+                Text("通知を受信したアプリがまだありません")
             }
         } else {
             LazyColumn(
@@ -67,13 +67,34 @@ fun TagManageScreen(
                                     color = MaterialTheme.colorScheme.outline,
                                 )
                             }
-                            AssistChip(
-                                onClick = {
-                                    editTarget = app
-                                    editTagText = app.tag
-                                },
-                                label = { Text(app.tag) },
-                            )
+
+                            if (app.tag != null) {
+                                // タグあり → タグチップ（タップで編集）
+                                AssistChip(
+                                    onClick = {
+                                        editTarget = app
+                                        editTagText = app.tag
+                                    },
+                                    label = { Text(app.tag) },
+                                )
+                            } else {
+                                // タグなし → 追加ボタン
+                                OutlinedButton(
+                                    onClick = {
+                                        editTarget = app
+                                        editTagText = ""
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 12.dp),
+                                ) {
+                                    Icon(
+                                        Icons.Default.Add,
+                                        contentDescription = "タグを追加",
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("タグ", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
                         }
                     }
                 }
@@ -83,9 +104,11 @@ fun TagManageScreen(
 
     // ── タグ編集ダイアログ ────
     if (editTarget != null) {
+        val isNew = editTarget!!.tag == null
+
         AlertDialog(
             onDismissRequest = { editTarget = null },
-            title = { Text("タグを編集") },
+            title = { Text(if (isNew) "タグを追加" else "タグを編集") },
             text = {
                 OutlinedTextField(
                     value = editTagText,
@@ -104,14 +127,15 @@ fun TagManageScreen(
             },
             dismissButton = {
                 Row {
-                    TextButton(onClick = {
-                        editTarget?.let { viewModel.deleteTag(it.packageName) }
-                        editTarget = null
-                    }) { Text("削除") }
+                    if (!isNew) {
+                        TextButton(onClick = {
+                            editTarget?.let { viewModel.deleteTag(it.packageName) }
+                            editTarget = null
+                        }) { Text("削除") }
+                    }
                     TextButton(onClick = { editTarget = null }) { Text("キャンセル") }
                 }
             },
         )
     }
 }
-

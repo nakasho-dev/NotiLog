@@ -16,7 +16,7 @@
 | 🛡️ **暗号化保存** | Room + SQLCipher による AES-256 暗号化 DB。鍵は Android Keystore で管理 |
 | 📋 **全通知キャプチャ** | `NotificationListenerService` でサイレント通知を含む全通知を記録 |
 | 🔍 **全文検索** | FTS4 + unicode61 トークナイザで日本語対応の高速検索 |
-| 🏷️ **タグ管理** | アプリ単位でタグを付与し、過去ログ全体に即時反映 |
+| 🏷️ **タグ管理** | 通知実績のある全アプリを一覧表示し、アプリ単位でタグを追加・編集・削除。過去ログ全体に即時反映 |
 | 📊 **通知種別分類** | リモート/ローカル/サイレント/常駐など 7 種別を自動判定・表示 |
 | 💾 **バックアップ** | 暗号化 JSON で SAF 経由エクスポート/インポート |
 | 📄 **JSON 生データ表示** | 通知の全フィールドを整形 JSON でシンタックスハイライト表示＋ワンタップコピー |
@@ -133,6 +133,10 @@ app/src/main/java/org/ukky/notilog/
 │   │   │   ├── DetailScreen.kt
 │   │   │   ├── DetailViewModel.kt
 │   │   │   └── JsonViewerScreen.kt  # JSON 生データ表示
+│   │   ├── tag/
+│   │   │   ├── TagManageScreen.kt
+│   │   │   ├── TagManageItem.kt     # タグ管理 UI モデル
+│   │   │   └── TagViewModel.kt
 │   │   └── ...
 │   ├── component/                 # 共通 UI コンポーネント
 │   └── theme/
@@ -158,6 +162,7 @@ app/src/main/java/org/ukky/notilog/
 
 - [基本設計書](docs/DESIGN.md)
 - [シーケンス図: 通知受信〜保存フロー](docs/sequence-notification-capture.md)
+- [シーケンス図: タグ管理フロー](docs/sequence-tag-management.md)
 
 ---
 
