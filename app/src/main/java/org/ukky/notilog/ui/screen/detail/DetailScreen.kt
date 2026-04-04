@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +25,7 @@ import java.util.*
 fun DetailScreen(
     viewModel: DetailViewModel,
     onBack: () -> Unit,
+    onJsonClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -40,6 +42,9 @@ fun DetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onJsonClick) {
+                        Icon(Icons.Default.DataObject, contentDescription = "JSON")
+                    }
                     IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(Icons.Default.Delete, contentDescription = "削除")
                     }

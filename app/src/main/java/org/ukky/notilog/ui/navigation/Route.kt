@@ -20,5 +20,13 @@ sealed interface Route {
             const val ARG_ID = "id"
         }
     }
+
+    data class JsonViewer(val id: Long) : Route {
+        override val route = "detail/$id/json"
+        companion object {
+            const val ROUTE_PATTERN = "detail/{id}/json"
+            const val ARG_ID = "id"
+        }
+    }
 }
 

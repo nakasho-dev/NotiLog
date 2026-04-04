@@ -19,6 +19,7 @@
 | 🏷️ **タグ管理** | アプリ単位でタグを付与し、過去ログ全体に即時反映 |
 | 📊 **通知種別分類** | リモート/ローカル/サイレント/常駐など 7 種別を自動判定・表示 |
 | 💾 **バックアップ** | 暗号化 JSON で SAF 経由エクスポート/インポート |
+| 📄 **JSON 生データ表示** | 通知の全フィールドを整形 JSON でシンタックスハイライト表示＋ワンタップコピー |
 
 ---
 
@@ -124,7 +125,15 @@ app/src/main/java/org/ukky/notilog/
 ├── service/
 │   └── NotiLogListenerService.kt  # 通知キャプチャ
 ├── ui/
+│   ├── navigation/
+│   │   ├── NotiLogNavGraph.kt     # Navigation Compose
+│   │   └── Route.kt              # ルート定義
 │   ├── screen/                    # 各画面 (Compose)
+│   │   ├── detail/
+│   │   │   ├── DetailScreen.kt
+│   │   │   ├── DetailViewModel.kt
+│   │   │   └── JsonViewerScreen.kt  # JSON 生データ表示
+│   │   └── ...
 │   ├── component/                 # 共通 UI コンポーネント
 │   └── theme/
 ├── di/

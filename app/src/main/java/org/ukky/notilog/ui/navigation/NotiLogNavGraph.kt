@@ -1,14 +1,17 @@
 package org.ukky.notilog.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import org.ukky.notilog.ui.screen.detail.DetailScreen
+import org.ukky.notilog.ui.screen.detail.JsonViewerScreen
 import org.ukky.notilog.ui.screen.home.HomeScreen
 import org.ukky.notilog.ui.screen.onboarding.OnboardingScreen
 import org.ukky.notilog.ui.screen.search.SearchScreen
@@ -54,9 +57,24 @@ fun NotiLogNavGraph(
         composable(
             route = Route.Detail.ROUTE_PATTERN,
             arguments = listOf(navArgument(Route.Detail.ARG_ID) { type = NavType.LongType }),
-        ) {
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getLong(Route.Detail.ARG_ID) ?: 0L
             DetailScreen(
                 viewModel = hiltViewModel(),
+                onBack = { navController.popBackStack() },
+                onJsonClick = { navController.navigate(Route.JsonViewer(id).route) },
+            )
+        }
+
+        // ── JSON ビューア ────
+        composable(
+            route = Route.JsonViewer.ROUTE_PATTERN,
+            arguments = listOf(navArgument(Route.JsonViewer.ARG_ID) { type = NavType.LongType }),
+        ) {
+            val viewModel: org.ukky.notilog.ui.screen.detail.DetailViewModel = hiltViewModel()
+            val state by viewModel.uiState.collectAsStateWithLifecycle()
+            JsonViewerScreen(
+                rawJson = state.rawJson,
                 onBack = { navController.popBackStack() },
             )
         }

@@ -1,7 +1,7 @@
 # NotiLog 基本設計書
 
-> **バージョン**: 1.1  
-> **最終更新**: 2026-04-01  
+> **バージョン**: 1.2  
+> **最終更新**: 2026-04-04  
 > **対象プラットフォーム**: Android 10 (API 29) 以上
 
 ---
@@ -58,6 +58,8 @@
   └─ 通知権限許可済 → [ホーム画面]
                           │
                           ├─ リストアイテムタップ → [通知詳細画面]
+                          │                           │
+                          │                           └─ JSON ボタン → [JSON ビューア画面]
                           │
                           ├─ 検索アイコン → [検索画面]
                           │                    │
@@ -78,6 +80,7 @@
 | 4 | **検索画面** | `search` | テキスト入力による FTS 全文検索。結果はリスト表示され、タップで詳細画面へ遷移する |
 | 5 | **タグ管理画面** | `tags` | インストール済みアプリ（通知受信実績のあるもの）をパッケージ単位で一覧し、タグの付与・編集を行う |
 | 6 | **設定画面** | `settings` | 通知リスナー権限の状態確認、バックアップ／リストア、アプリ情報を表示する |
+| 7 | **JSON ビューア画面** | `detail/{id}/json` | 通知 1 件の全フィールドを整形 JSON でシンタックスハイライト表示し、クリップボードへのコピー機能を提供する |
 
 ### 3.3 各画面の詳細仕様
 
@@ -108,7 +111,20 @@
   - 通知本文: title / text / bigText / subText / ticker（null のフィールドは非表示）
   - 受信統計: 受信回数、初回受信時刻、最終受信時刻
   - Extras セクション: key-value の展開表示（折りたたみ可能）
+  - **JSON ボタン**: TopAppBar に `DataObject` アイコンを配置。タップで JSON ビューア画面へ遷移
   - 削除ボタン
+
+#### 3.3.7 JSON ビューア画面
+
+- **目的**: 通知の全フィールドを JSON 形式で一覧し、開発者やパワーユーザーが生データを確認・コピーできるようにする
+- **主要要素**:
+  - TopAppBar: タイトル「JSON 生データ」+ 戻るボタン + Copy ボタン（`ContentCopy` アイコン）
+  - JSON 表示エリア: 整形済み（`prettyPrint`）JSON をモノスペースフォントでスクロール表示
+  - シンタックスハイライト: `AnnotatedString` を用いてキー（青）・文字列値（緑）・数値（橙）・bool/null（紫）・記号（灰）を色分け
+  - テキスト選択: `SelectionContainer` でテキストの部分選択が可能
+  - Copy 機能: TopAppBar の Copy ボタンタップでクリップボードに JSON 全文をコピーし、`Snackbar` でフィードバック表示
+- **データソース**: `DetailViewModel` が `NotificationEntity` の全フィールドを `JsonObject` に変換し `prettyPrint` で整形した文字列を提供
+- **設計ポイント**: 外部ライブラリを使用せず、正規表現ベースの簡易パーサーで JSON シンタックスハイライトを実装。ダーク/ライト両テーマで視認性を確保
 
 #### 3.3.4 検索画面
 
@@ -156,6 +172,7 @@
 | F-10 | 通知削除 | 推奨 | 個別削除・全件削除 |
 | F-11 | テーマ切替 | 推奨 | ダーク / ライト / システム連動 |
 | F-12 | 通知種別分類 | **必須** | 受信通知を 7 種別に自動分類し、一覧・詳細画面で視覚表示 |
+| F-13 | JSON 生データ表示 | 推奨 | 通知詳細画面から遷移し、全フィールドを整形 JSON でシンタックスハイライト表示。クリップボードコピー機能付き |
 
 ### 4.2 通知キャプチャの詳細フロー
 
@@ -371,7 +388,8 @@ org.ukky.notilog/
 │
 ├── ui/
 │   ├── navigation/
-│   │   └── NotiLogNavGraph.kt         # Navigation Compose ルート定義
+│   │   ├── NotiLogNavGraph.kt         # Navigation Compose ルート定義
+│   │   └── Route.kt                   # ルート定義（sealed interface）
 │   ├── screen/
 │   │   ├── onboarding/
 │   │   │   └── OnboardingScreen.kt    # 権限誘導画面
@@ -380,7 +398,8 @@ org.ukky.notilog/
 │   │   │   └── HomeViewModel.kt
 │   │   ├── detail/
 │   │   │   ├── DetailScreen.kt
-│   │   │   └── DetailViewModel.kt
+│   │   │   ├── DetailViewModel.kt
+│   │   │   └── JsonViewerScreen.kt     # JSON 生データ表示（シンタックスハイライト + コピー）
 │   │   ├── search/
 │   │   │   ├── SearchScreen.kt
 │   │   │   └── SearchViewModel.kt
