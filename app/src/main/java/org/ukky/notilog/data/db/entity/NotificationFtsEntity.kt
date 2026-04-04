@@ -8,7 +8,8 @@ import androidx.room.Fts4
  * 全文検索用 FTS4 仮想テーブル。
  *
  * contentEntity に NotificationEntity を指定し、Room が自動で同期トリガーを生成する。
- * unicode61 トークナイザで日本語の文字単位検索に対応する。
+ * unicode61 トークナイザで日本語を含む通知にも FTS4 を適用しやすくするが、
+ * 短い語句や 1 文字検索は LIKE フォールバックで補完する前提とする。
  */
 @Fts4(contentEntity = NotificationEntity::class, tokenizer = "unicode61")
 @Entity(tableName = "notifications_fts")

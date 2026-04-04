@@ -1,12 +1,17 @@
 package org.ukky.notilog.data.repository
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import org.ukky.notilog.data.db.dao.NotificationDao
 import org.ukky.notilog.data.db.entity.NotificationEntity
 import org.ukky.notilog.data.db.entity.NotificationWithTag
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class NotificationRepositoryImpl @Inject constructor(
     private val dao: NotificationDao,
@@ -18,8 +23,18 @@ class NotificationRepositoryImpl @Inject constructor(
     override fun getByTag(tag: String): Flow<List<NotificationWithTag>> =
         dao.getByTag(tag)
 
-    override fun search(query: String): Flow<List<NotificationWithTag>> =
-        dao.search(query)
+    override fun search(query: String): Flow<List<NotificationWithTag>> {
+        val pattern = query.toLikePattern()
+        return dao.searchFts(query)
+            .catch { emit(emptyList()) }
+            .flatMapLatest { ftsResults ->
+                if (ftsResults.isNotEmpty()) {
+                    flowOf(ftsResults)
+                } else {
+                    dao.searchPartial(pattern)
+                }
+            }
+    }
 
     override fun getById(id: Long): Flow<NotificationEntity?> =
         dao.getById(id)
@@ -49,5 +64,16 @@ class NotificationRepositoryImpl @Inject constructor(
 
     override fun getDistinctPackageNames(): Flow<List<String>> =
         dao.getDistinctPackageNames()
+
+    private fun String.toLikePattern(): String = buildString(length + 2) {
+        append('%')
+        for (ch in this@toLikePattern) {
+            when (ch) {
+                '\\', '%', '_' -> append('\\')
+            }
+            append(ch)
+        }
+        append('%')
+    }
 }
 

@@ -139,10 +139,36 @@ class NotificationDaoTest {
 
         // Robolectric では FTS content sync triggers が動かない場合があるため
         // 結果件数ではなく「例外なく実行できること」を検証する
-        dao.search("hello").test {
+        dao.searchFts("hello").test {
             val results = awaitItem()
             // FTS が動けば 1 件、動かなければ 0 件（どちらも正常）
             assertTrue(results.size <= 1)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `部分一致検索で1文字の日本語にもヒットする`() = runTest {
+        dao.insert(createEntity(signature = "like1", title = "東京都", text = "天気予報"))
+        dao.insert(createEntity(signature = "like2", title = "大阪府", text = "お知らせ"))
+
+        dao.searchPartial("%京%").test {
+            val results = awaitItem()
+            assertEquals(1, results.size)
+            assertEquals("東京都", results.first().notification.title)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `部分一致検索でワイルドカード文字をエスケープして検索できる`() = runTest {
+        dao.insert(createEntity(signature = "like3", title = "100%完了", text = "進捗100%"))
+        dao.insert(createEntity(signature = "like4", title = "1000件", text = "進捗あり"))
+
+        dao.searchPartial("%100\\%%").test {
+            val results = awaitItem()
+            assertEquals(1, results.size)
+            assertEquals("100%完了", results.first().notification.title)
             cancelAndIgnoreRemainingEvents()
         }
     }

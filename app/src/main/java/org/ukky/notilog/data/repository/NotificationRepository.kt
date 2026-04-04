@@ -10,6 +10,12 @@ import org.ukky.notilog.data.db.entity.NotificationWithTag
 interface NotificationRepository {
     fun getAllWithTag(): Flow<List<NotificationWithTag>>
     fun getByTag(tag: String): Flow<List<NotificationWithTag>>
+    /**
+     * 通知を検索する。
+     *
+     * まず FTS4 で全文検索し、結果が 0 件または MATCH クエリが解釈できない場合は
+     * title / text / bigText / subText に対する部分一致検索へフォールバックする。
+     */
     fun search(query: String): Flow<List<NotificationWithTag>>
     fun getById(id: Long): Flow<NotificationEntity?>
     suspend fun upsert(entity: NotificationEntity)

@@ -2,6 +2,7 @@ package org.ukky.notilog.data.repository
 
 import app.cash.turbine.test
 import io.mockk.*
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
@@ -95,11 +96,11 @@ class NotificationRepositoryImplTest {
     // ── 検索 ──────────────────────────────────────────
 
     @Test
-    fun `全文検索でマッチした通知を取得できる`() = runTest {
+    fun `FTS検索でマッチした通知を取得できる`() = runTest {
         val searchResult = listOf(
             NotificationWithTag(createEntity(signature = "sr1", title = "東京天気"), null, null),
         )
-        every { dao.search("東京") } returns flowOf(searchResult)
+        every { dao.searchFts("東京") } returns flowOf(searchResult)
 
         repository.search("東京").test {
             val result = awaitItem()
@@ -107,6 +108,47 @@ class NotificationRepositoryImplTest {
             assertEquals("東京天気", result[0].notification.title)
             cancelAndIgnoreRemainingEvents()
         }
+
+        verify(exactly = 1) { dao.searchFts("東京") }
+        verify(exactly = 0) { dao.searchPartial(any()) }
+    }
+
+    @Test
+    fun `FTS検索が0件なら部分一致検索にフォールバックする`() = runTest {
+        val fallbackResult = listOf(
+            NotificationWithTag(createEntity(signature = "sr2", title = "東京都"), null, null),
+        )
+        every { dao.searchFts("京") } returns flowOf(emptyList())
+        every { dao.searchPartial("%京%") } returns flowOf(fallbackResult)
+
+        repository.search("京").test {
+            val result = awaitItem()
+            assertEquals(1, result.size)
+            assertEquals("東京都", result[0].notification.title)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        verify(exactly = 1) { dao.searchFts("京") }
+        verify(exactly = 1) { dao.searchPartial("%京%") }
+    }
+
+    @Test
+    fun `FTS検索が失敗しても部分一致検索にフォールバックする`() = runTest {
+        val fallbackResult = listOf(
+            NotificationWithTag(createEntity(signature = "sr3", title = "100%完了"), null, null),
+        )
+        every { dao.searchFts("100%") } returns flow { error("bad MATCH query") }
+        every { dao.searchPartial("%100\\%%") } returns flowOf(fallbackResult)
+
+        repository.search("100%").test {
+            val result = awaitItem()
+            assertEquals(1, result.size)
+            assertEquals("100%完了", result[0].notification.title)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        verify(exactly = 1) { dao.searchFts("100%") }
+        verify(exactly = 1) { dao.searchPartial("%100\\%%") }
     }
 
     // ── 削除 ──────────────────────────────────────────

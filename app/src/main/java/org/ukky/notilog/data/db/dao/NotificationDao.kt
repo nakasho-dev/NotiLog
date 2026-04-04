@@ -45,7 +45,21 @@ interface NotificationDao {
         ORDER BY n.last_received_at DESC
         """
     )
-    fun search(query: String): Flow<List<NotificationWithTag>>
+    fun searchFts(query: String): Flow<List<NotificationWithTag>>
+
+    @Query(
+        """
+        SELECT n.*, a.tag, a.app_label
+        FROM notifications n
+        LEFT JOIN app_tags a ON n.package_name = a.package_name
+        WHERE n.title LIKE :pattern ESCAPE '\'
+           OR n.text LIKE :pattern ESCAPE '\'
+           OR n.big_text LIKE :pattern ESCAPE '\'
+           OR n.sub_text LIKE :pattern ESCAPE '\'
+        ORDER BY n.last_received_at DESC
+        """
+    )
+    fun searchPartial(pattern: String): Flow<List<NotificationWithTag>>
 
     // ── 個別取得 ──────────────────────────────────────
 

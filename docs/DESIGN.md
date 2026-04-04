@@ -130,10 +130,11 @@
 
 - **主要要素**:
   - 検索バー（`SearchBar` Composable）
-  - FTS4 MATCH クエリによるリアルタイム検索結果
+  - **FTS4 MATCH クエリを優先**したリアルタイム検索結果
+  - FTS4 の結果が 0 件、または MATCH クエリが解釈できない場合は `LIKE` による部分一致検索へフォールバック
   - 結果リスト（ホーム画面と同一の `NotificationListItem` を再利用）
   - 検索対象: title / text / bigText / subText
-- **日本語対応**: `unicode61` トークナイザによる文字単位マッチ
+- **日本語対応**: `unicode61` トークナイザを利用しつつ、ヒットしない短い語句や 1 文字検索は部分一致フォールバックで補完する
 
 #### 3.3.5 タグ管理画面
 
@@ -168,7 +169,7 @@
 | F-02 | 重複通知の集約 | **必須** | 同一内容の通知をハッシュ（signature）で判定し1件に集約、受信回数を記録 |
 | F-03 | 通知一覧表示 | **必須** | 保存済み通知を時系列で一覧表示 |
 | F-04 | 通知詳細表示 | **必須** | 通知の全フィールド・extras・受信統計を閲覧 |
-| F-05 | 全文検索 | **必須** | FTS4 による高速な全文検索（日本語対応） |
+| F-05 | 全文検索 | **必須** | FTS4 による高速な全文検索を優先し、0件時は部分一致検索へフォールバック（日本語対応） |
 | F-06 | タグ管理 | **必須** | パッケージ単位でのタグ付与。タグによるフィルタリング |
 | F-07 | データベース暗号化 | **必須** | Room + SQLCipher による DB 暗号化。鍵は Android Keystore 管理 |
 | F-08 | バックアップ / リストア | **必須** | 暗号化 JSON の SAF 経由エクスポート・インポート |
@@ -534,7 +535,7 @@ data class NotificationFtsEntity(
 )
 ```
 
-**トークナイザ選定理由**: `unicode61` は Unicode 文字を1文字単位で分割するため、日本語（漢字・ひらがな・カタカナ）の部分一致検索に対応できる。形態素解析は行わないが、通知テキストの検索用途としては十分な精度を確保できる。
+**トークナイザ選定理由**: `unicode61` は Unicode を扱えるため日本語を含む通知でも FTS4 を適用しやすい。一方で短い語句や 1 文字検索は端末実装や MATCH 解釈により期待どおりヒットしない場合があるため、本アプリでは FTS4 を優先しつつ `LIKE` による部分一致検索をフォールバックとして併用する。
 
 #### 6.2.3 `app_tags` — アプリタグテーブル
 
@@ -575,6 +576,18 @@ FROM notifications n
 INNER JOIN notifications_fts fts ON n.id = fts.rowid
 LEFT JOIN app_tags a ON n.package_name = a.package_name
 WHERE notifications_fts MATCH :query
+ORDER BY n.last_received_at DESC
+```
+
+#### 全文検索フォールバック（0件時 / MATCH 解釈不可時）
+```sql
+SELECT n.*, a.tag, a.app_label
+FROM notifications n
+LEFT JOIN app_tags a ON n.package_name = a.package_name
+WHERE n.title LIKE :pattern ESCAPE '\\'
+   OR n.text LIKE :pattern ESCAPE '\\'
+   OR n.big_text LIKE :pattern ESCAPE '\\'
+   OR n.sub_text LIKE :pattern ESCAPE '\\'
 ORDER BY n.last_received_at DESC
 ```
 
