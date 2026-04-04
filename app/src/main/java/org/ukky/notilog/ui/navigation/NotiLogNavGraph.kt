@@ -15,6 +15,7 @@ import org.ukky.notilog.ui.screen.detail.JsonViewerScreen
 import org.ukky.notilog.ui.screen.home.HomeScreen
 import org.ukky.notilog.ui.screen.onboarding.OnboardingScreen
 import org.ukky.notilog.ui.screen.search.SearchScreen
+import org.ukky.notilog.ui.screen.settings.OssLicensesScreen
 import org.ukky.notilog.ui.screen.settings.SettingsScreen
 import org.ukky.notilog.ui.screen.tag.TagManageScreen
 
@@ -102,6 +103,14 @@ fun NotiLogNavGraph(
         composable(Route.Settings.route) {
             SettingsScreen(
                 viewModel = hiltViewModel(),
+                onBack = { navController.popBackStack() },
+                onOssLicensesClick = { navController.navigate(Route.OssLicenses.route) },
+            )
+        }
+
+        // ── OSSライセンス ────
+        composable(Route.OssLicenses.route) {
+            OssLicensesScreen(
                 onBack = { navController.popBackStack() },
             )
         }

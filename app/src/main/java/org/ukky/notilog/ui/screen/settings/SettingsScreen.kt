@@ -22,6 +22,7 @@ import org.ukky.notilog.service.NotiLogListenerService
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
+    onOssLicensesClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -139,6 +140,14 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline,
             )
+
+            // ── OSS ライセンス ────
+            OutlinedButton(
+                onClick = onOssLicensesClick,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("OSSライセンス")
+            }
 
             // ── メッセージ ────
             state.message?.let {

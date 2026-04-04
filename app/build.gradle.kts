@@ -4,6 +4,36 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.aboutlibraries)
+}
+
+/**
+ * AboutLibraries プラグインが AGP 9.x の AppExtension を検出できないため、
+ * 非 Android タスク exportLibraryDefinitions の出力を
+ * AGP 9.x の addGeneratedSourceDirectory API 経由で raw リソースとして登録する。
+ */
+abstract class GenerateAboutLibrariesResTask : DefaultTask() {
+    @get:org.gradle.api.tasks.InputFile
+    abstract val inputJson: org.gradle.api.file.RegularFileProperty
+
+    @get:org.gradle.api.tasks.OutputDirectory
+    abstract val outputDir: org.gradle.api.file.DirectoryProperty
+
+    @org.gradle.api.tasks.TaskAction
+    fun run() {
+        val rawDir = outputDir.get().dir("raw").asFile
+        rawDir.mkdirs()
+        inputJson.get().asFile.copyTo(
+            rawDir.resolve("aboutlibraries.json"),
+            overwrite = true,
+        )
+    }
+}
+
+val generateAboutLibrariesRes by tasks.registering(GenerateAboutLibrariesResTask::class) {
+    dependsOn("exportLibraryDefinitions")
+    inputJson.set(layout.buildDirectory.file("generated/aboutLibraries/aboutlibraries.json"))
+    outputDir.set(layout.buildDirectory.dir("generated/aboutLibrariesRes"))
 }
 
 android {
@@ -46,6 +76,14 @@ android {
     }
 }
 
+// AGP 9.x の正規 API でバリアントごとに生成リソースディレクトリを登録
+androidComponents.onVariants { variant ->
+    variant.sources.res?.addGeneratedSourceDirectory(
+        generateAboutLibrariesRes,
+        GenerateAboutLibrariesResTask::outputDir,
+    )
+}
+
 dependencies {
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
@@ -79,6 +117,10 @@ dependencies {
 
     // Serialization
     implementation(libs.kotlinx.serialization.json)
+
+    // AboutLibraries
+    implementation(libs.aboutlibraries.core)
+    implementation(libs.aboutlibraries.compose.m3)
 
     // Unit Test
     testImplementation(libs.junit)

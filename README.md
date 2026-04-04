@@ -75,6 +75,7 @@ NotiLog は受信した通知を以下の 7 種別にヒューリスティクス
 | 画面遷移 | Navigation Compose |
 | シリアライズ | Kotlin Serialization |
 | 暗号化 | Android Keystore + AES-GCM / PBKDF2 |
+| OSSライセンス | AboutLibraries (`aboutlibraries-compose-m3`) |
 | ビルド | Gradle (Kotlin DSL) + Version Catalog |
 | テスト | JUnit 4 + MockK + Turbine + Robolectric |
 
@@ -133,6 +134,10 @@ app/src/main/java/org/ukky/notilog/
 │   │   │   ├── DetailScreen.kt
 │   │   │   ├── DetailViewModel.kt
 │   │   │   └── JsonViewerScreen.kt  # JSON 生データ表示
+│   │   ├── settings/
+│   │   │   ├── SettingsScreen.kt
+│   │   │   ├── SettingsViewModel.kt
+│   │   │   └── OssLicensesScreen.kt # OSSライセンス表示
 │   │   ├── tag/
 │   │   │   ├── TagManageScreen.kt
 │   │   │   ├── TagManageItem.kt     # タグ管理 UI モデル
@@ -163,6 +168,7 @@ app/src/main/java/org/ukky/notilog/
 - [基本設計書](docs/DESIGN.md)
 - [シーケンス図: 通知受信〜保存フロー](docs/sequence-notification-capture.md)
 - [シーケンス図: タグ管理フロー](docs/sequence-tag-management.md)
+- [シーケンス図: OSSライセンス表示フロー](docs/sequence-oss-licenses.md)
 
 ---
 

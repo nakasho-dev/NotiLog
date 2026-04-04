@@ -12,6 +12,7 @@ sealed interface Route {
     data object Search : Route { override val route = "search" }
     data object TagManage : Route { override val route = "tags" }
     data object Settings : Route { override val route = "settings" }
+    data object OssLicenses : Route { override val route = "oss_licenses" }
 
     data class Detail(val id: Long) : Route {
         override val route = "detail/$id"
