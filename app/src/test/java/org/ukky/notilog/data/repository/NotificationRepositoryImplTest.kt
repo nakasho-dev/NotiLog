@@ -156,6 +156,7 @@ class NotificationRepositoryImplTest {
         subText = null,
         ticker = null,
         extrasJson = "{}",
+        rawJson = "{}",
         signature = signature,
         notificationType = notificationType,
         isRemote = notificationType == "remote_push" || notificationType == "remote_silent",

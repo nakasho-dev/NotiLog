@@ -16,7 +16,7 @@ import org.ukky.notilog.data.db.entity.NotificationFtsEntity
         NotificationFtsEntity::class,
         AppTagEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class NotiLogDatabase : RoomDatabase() {
@@ -54,6 +54,15 @@ abstract class NotiLogDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "ALTER TABLE notifications ADD COLUMN notification_type TEXT NOT NULL DEFAULT 'local'"
+                )
+            }
+        }
+
+        /** v3 → v4: 通知受信時の生データ JSON カラムを追加 */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE notifications ADD COLUMN raw_json TEXT NOT NULL DEFAULT '{}'"
                 )
             }
         }

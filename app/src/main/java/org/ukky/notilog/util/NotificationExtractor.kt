@@ -4,7 +4,12 @@ import android.app.Notification
 import android.service.notification.StatusBarNotification
 import org.ukky.notilog.data.db.entity.NotificationEntity
 import org.ukky.notilog.data.db.entity.NotificationType
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * StatusBarNotification → NotificationEntity への変換ユーティリティ。
@@ -46,6 +51,8 @@ object NotificationExtractor {
             subText = subText,
         )
 
+        val rawJson = buildRawJson(sbn)
+
         @Suppress("DEPRECATION")
         return NotificationEntity(
             packageName = sbn.packageName,
@@ -55,6 +62,7 @@ object NotificationExtractor {
             subText = subText,
             ticker = ticker,
             extrasJson = extrasJson,
+            rawJson = rawJson,
             signature = signature,
             notificationType = type.code,
             isRemote = type == NotificationType.REMOTE_PUSH || type == NotificationType.REMOTE_SILENT,
@@ -158,6 +166,71 @@ object NotificationExtractor {
             }
         }
         return map.toString()
+    }
+
+    // ──────────────────────────────────────────────
+    //  通知受信時の生データ JSON 生成
+    // ──────────────────────────────────────────────
+
+    private val prettyJson = Json { prettyPrint = true }
+
+    /**
+     * StatusBarNotification の全フィールドを、加工・変換せずに
+     * 整形 JSON 文字列としてダンプする。
+     *
+     * アプリ独自の加工データ（notificationType / signature / capturedAt 等）は
+     * 含めず、Android OS から受け取った通知データのみを忠実に保持する。
+     * この JSON は DB の raw_json カラムに保存され、JSON ビューア画面で
+     * デバッグ用の生データとしてそのまま表示・コピーされる。
+     */
+    internal fun buildRawJson(sbn: StatusBarNotification): String {
+        val notification = sbn.notification
+
+        val extrasObj = buildJsonObject {
+            val extras = notification.extras
+            for (key in extras.keySet()) {
+                val value = try {
+                    extras.get(key)?.toString() ?: "null"
+                } catch (_: Exception) {
+                    "<unreadable>"
+                }
+                put(key, value)
+            }
+        }
+
+        val json = buildJsonObject {
+            // ── StatusBarNotification のフィールド ────
+            put("packageName", sbn.packageName)
+            put("id", sbn.id)
+            put("key", sbn.key)
+            put("postTime", sbn.postTime)
+            put("tag", sbn.tag?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("groupKey", sbn.groupKey?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("isOngoing", sbn.isOngoing)
+            put("isClearable", sbn.isClearable)
+
+            // ── Notification のフィールド ────
+            put("flags", notification.flags)
+            @Suppress("DEPRECATION")
+            put("priority", notification.priority)
+            put("tickerText", notification.tickerText?.toString()
+                ?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("category", notification.category
+                ?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("channelId", notification.channelId
+                ?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("group", notification.group
+                ?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("sortKey", notification.sortKey
+                ?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("when", notification.`when`)
+            put("number", notification.number)
+
+            // ── Extras（全 key-value） ────
+            put("extras", extrasObj)
+        }
+
+        return prettyJson.encodeToString(JsonObject.serializer(), json)
     }
 }
 

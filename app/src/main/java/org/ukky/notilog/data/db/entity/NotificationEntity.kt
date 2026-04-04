@@ -41,6 +41,21 @@ data class NotificationEntity(
     @ColumnInfo(name = "extras_json", defaultValue = "{}")
     val extrasJson: String = "{}",
 
+    /**
+     * 通知受信時に StatusBarNotification から直接ダンプした生データ JSON。
+     * Android OS 由来のフィールド（packageName / id / key / postTime /
+     * tag / groupKey / flags / priority / tickerText / category /
+     * channelId / group / sortKey / when / number / extras）のみを
+     * prettyPrint で保持する。
+     *
+     * アプリ独自の加工データ（notificationType / signature / capturedAt 等）は
+     * 含まない。モデルクラスへの変換を行わず、SBN の値を忠実に保存する。
+     *
+     * v4 で追加。v3 以前のデータは空オブジェクト "{}" がデフォルト。
+     */
+    @ColumnInfo(name = "raw_json", defaultValue = "{}")
+    val rawJson: String = "{}",
+
     val signature: String,
 
     /**

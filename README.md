@@ -19,7 +19,7 @@
 | 🏷️ **タグ管理** | 通知実績のある全アプリを一覧表示し、アプリ単位でタグを追加・編集・削除。過去ログ全体に即時反映 |
 | 📊 **通知種別分類** | リモート/ローカル/サイレント/常駐など 7 種別を自動判定・表示 |
 | 💾 **バックアップ** | 暗号化 JSON で SAF 経由エクスポート/インポート |
-| 📄 **JSON 生データ表示** | 通知の全フィールドを整形 JSON でシンタックスハイライト表示＋ワンタップコピー |
+| 📄 **JSON 生データ表示** | 通知受信時の Android OS 由来の生データ（`StatusBarNotification` の全フィールド）を整形 JSON でシンタックスハイライト表示＋ワンタップコピー。デバッグ用途に最適 |
 
 ---
 
@@ -111,7 +111,7 @@ app/src/main/java/org/ukky/notilog/
 ├── MainActivity.kt                # Single Activity
 ├── data/
 │   ├── db/
-│   │   ├── NotiLogDatabase.kt     # Room Database (v3)
+│   │   ├── NotiLogDatabase.kt     # Room Database (v4)
 │   │   ├── DatabaseProvider.kt    # SQLCipher 暗号化 DB 提供
 │   │   ├── entity/
 │   │   │   ├── NotificationEntity.kt

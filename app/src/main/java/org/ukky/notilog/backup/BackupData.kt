@@ -19,6 +19,7 @@ data class NotificationBackupItem(
     val subText: String?,
     val ticker: String?,
     val extrasJson: String,
+    val rawJson: String = "{}",
     val signature: String,
     val receiveCount: Int,
     val firstReceivedAt: Long,

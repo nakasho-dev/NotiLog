@@ -45,6 +45,7 @@ object DatabaseProvider {
                 NotiLogDatabase.MIGRATION_1_2,
                 NotiLogDatabase.MIGRATION_2_3,
                 NotiLogDatabase.MIGRATION_1_3,
+                NotiLogDatabase.MIGRATION_3_4,
             )
             .build()
     }

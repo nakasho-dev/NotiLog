@@ -1,6 +1,6 @@
 # NotiLog 基本設計書
 
-> **バージョン**: 1.3  
+> **バージョン**: 1.4  
 > **最終更新**: 2026-04-04  
 > **対象プラットフォーム**: Android 10 (API 29) 以上
 
@@ -123,8 +123,8 @@
   - シンタックスハイライト: `AnnotatedString` を用いてキー（青）・文字列値（緑）・数値（橙）・bool/null（紫）・記号（灰）を色分け
   - テキスト選択: `SelectionContainer` でテキストの部分選択が可能
   - Copy 機能: TopAppBar の Copy ボタンタップでクリップボードに JSON 全文をコピーし、`Snackbar` でフィードバック表示
-- **データソース**: `DetailViewModel` が `NotificationEntity` の全フィールドを `JsonObject` に変換し `prettyPrint` で整形した文字列を提供
-- **設計ポイント**: 外部ライブラリを使用せず、正規表現ベースの簡易パーサーで JSON シンタックスハイライトを実装。ダーク/ライト両テーマで視認性を確保
+- **データソース**: 通知受信時に `NotificationExtractor.buildRawJson()` が `StatusBarNotification` の全フィールドを直接読み取り、Android OS 由来の生データのみを整形 JSON に変換して `raw_json` カラムに保存する。アプリ独自の加工データ（`notificationType` / `signature` / `capturedAt` 等）は含まれない。`DetailViewModel` はこの値をそのまま `JsonViewerScreen` に渡す。v3 以前のデータは `raw_json` が空オブジェクト `{}` となる
+- **設計ポイント**: 外部ライブラリを使用せず、簡易パーサーで JSON シンタックスハイライトを実装。ダーク/ライト両テーマで視認性を確保
 
 #### 3.3.4 検索画面
 
@@ -176,7 +176,7 @@
 | F-10 | 通知削除 | 推奨 | 個別削除・全件削除 |
 | F-11 | テーマ切替 | 推奨 | ダーク / ライト / システム連動 |
 | F-12 | 通知種別分類 | **必須** | 受信通知を 7 種別に自動分類し、一覧・詳細画面で視覚表示 |
-| F-13 | JSON 生データ表示 | 推奨 | 通知詳細画面から遷移し、全フィールドを整形 JSON でシンタックスハイライト表示。クリップボードコピー機能付き |
+| F-13 | JSON 生データ表示 | 推奨 | 通知詳細画面から遷移し、`StatusBarNotification` から直接ダンプした Android OS 由来の生データを整形 JSON でシンタックスハイライト表示。アプリ独自の加工データは含まない。クリップボードコピー機能付き |
 
 ### 4.2 通知キャプチャの詳細フロー
 
@@ -197,6 +197,13 @@
     │
     ├─ SignatureGenerator.generate()
     │   └─ SHA-256( packageName + title + text + bigText + subText )
+    │
+    │     ├─ NotificationExtractor.buildRawJson()
+    │     │   └─ StatusBarNotification の全フィールドを prettyPrint JSON 文字列に変換
+    │     │       （packageName / id / key / postTime / tag / groupKey /
+    │     │        isOngoing / isClearable / flags / priority / tickerText /
+    │     │        category / channelId / group / sortKey / when / number / extras）
+    │     │       ※ アプリ独自の加工データ（notificationType / signature / capturedAt）は含めない
     │
     ├─ NotificationRepository.upsert(entity)
     │   │
@@ -453,14 +460,14 @@ org.ukky.notilog/
 │ sub_text         : Text?        │
 │ ticker           : Text?        │          ┌──────────────────────────┐
 │ extras_json      : Text         │          │  notifications_fts       │
-│ signature        : Text (UNIQUE)│          │  (FTS4 Virtual Table)    │
-│ notification_type: Text         │          ├──────────────────────────┤
-│ is_remote        : Int (非推奨) │          │ rowid → notifications.id │
-│ receive_count    : Int          │          │ title    : Text          │
-│ first_received_at: Long         │          │ text     : Text          │
-│ last_received_at : Long         │          │ big_text : Text          │
-└─────────────────────────────────┘          │ sub_text : Text          │
-                                             └──────────────────────────┘
+│ raw_json         : Text         │          │  (FTS4 Virtual Table)    │
+│ signature        : Text (UNIQUE)│          ├──────────────────────────┤
+│ notification_type: Text         │          │ rowid → notifications.id │
+│ is_remote        : Int (非推奨) │          │ title    : Text          │
+│ receive_count    : Int          │          │ text     : Text          │
+│ first_received_at: Long         │          │ big_text : Text          │
+│ last_received_at : Long         │          │ sub_text : Text          │
+└─────────────────────────────────┘          └──────────────────────────┘
 ```
 
 ### 6.2 テーブル定義
@@ -479,6 +486,7 @@ org.ukky.notilog/
 | `sub_text` | Text | NULLABLE | `Notification.EXTRA_SUB_TEXT` |
 | `ticker` | Text | NULLABLE | `Notification.tickerText` |
 | `extras_json` | Text | NOT NULL, DEFAULT '{}' | extras の全 key-value を JSON 文字列で保持 |
+| `raw_json` | Text | NOT NULL, DEFAULT '{}' | 通知受信時の Android OS 由来の生データを整形 JSON で保持（v4 追加）。アプリ独自の加工データ（notificationType / signature / capturedAt）は含まず、`StatusBarNotification` のフィールドのみを忠実にダンプする。JSON ビューア画面の表示ソース |
 | `signature` | Text | NOT NULL, UNIQUE INDEX | 重複判定用 SHA-256 ハッシュ |
 | `notification_type` | Text | NOT NULL, DEFAULT 'local' | 通知種別コード（`NotificationType.code`）。7 種別のいずれか |
 | `is_remote` | Integer | NOT NULL, DEFAULT 0 | リモートプッシュか否か（v2 互換 — 非推奨。`notification_type` を使用すること） |
@@ -493,13 +501,14 @@ org.ukky.notilog/
 
 #### 6.2.1a マイグレーション履歴
 
-現在の DB バージョンは **v3**。以下のマイグレーションパスが定義されている。
+現在の DB バージョンは **v4**。以下のマイグレーションパスが定義されている。
 
 | パス | 内容 |
 |---|---|
 | **v1 → v2** | `is_remote INTEGER NOT NULL DEFAULT 0` カラムを追加 |
 | **v2 → v3** | `notification_type TEXT NOT NULL DEFAULT 'local'` カラムを追加。`is_remote=1` の既存レコードを `notification_type='remote_push'` にバックフィル |
 | **v1 → v3** | v1 から直接 v3 へ移行。`is_remote` と `notification_type` を一括追加（バックフィル不要 — v1 にはリモート判定データなし） |
+| **v3 → v4** | `raw_json TEXT NOT NULL DEFAULT '{}'` カラムを追加。通知受信時の生データ JSON 保存用 |
 
 #### 6.2.2 `notifications_fts` — 全文検索用 FTS4 仮想テーブル
 

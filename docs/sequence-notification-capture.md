@@ -28,6 +28,15 @@ Android OS          ListenerService         Repository            暗号化DB   
     │                     │ SHA-256 signature   │                     │                  │
     │                     │ 生成                │                     │                  │
     │                     │                     │                     │                  │
+    │                     │ buildRawJson()      │                     │                  │
+    │                     │ sbn の全フィールドを │                     │                  │
+    │                     │ 直接読み取り         │                     │                  │
+    │                     │ prettyPrint JSON化   │                     │                  │
+    │                     │ → raw_json に格納   │                     │                  │
+    │                     │ ※ アプリ加工データ   │                     │                  │
+    │                     │   (type/sig等)は     │                     │                  │
+    │                     │   含めない           │                     │                  │
+    │                     │                     │                     │                  │
     │                     │  upsert(entity)     │                     │                  │
     │                     │────────────────────▶│                     │                  │
     │                     │                     │                     │                  │
@@ -133,6 +142,8 @@ sequenceDiagram
 
     Note over SVC: SignatureGenerator.generate()<br/>SHA-256(packageName + title<br/>+ text + bigText + subText)
 
+    Note over SVC: buildRawJson()<br/>StatusBarNotification の全フィールドを<br/>直接読み取り prettyPrint JSON に変換<br/>※ アプリ独自の加工データ<br/>(notificationType/signature/capturedAt)<br/>は含めない
+
     SVC->>REPO: upsert(notificationEntity)
 
     REPO->>DB: SELECT * FROM notifications<br/>WHERE signature = :sig LIMIT 1
@@ -209,6 +220,7 @@ sequenceDiagram
 | 2 | ListenerService | (内部処理) | `StatusBarNotification` からフィールド抽出 | `notification.extras` から title / text / bigText / subText / ticker を取得 |
 | 2a | ListenerService | (内部処理) | `NotificationExtractor.classifyNotification()` | flags → FLAG_FOREGROUND_SERVICE / ONGOING_EVENT / GROUP_SUMMARY の順に判定。次に FCM マーカーキーの有無 + priority で 7 種別に分類 |
 | 3 | ListenerService | (内部処理) | `SignatureGenerator.generate()` | `packageName + title + text + bigText + subText` の SHA-256 ハッシュ |
+| 3a | ListenerService | (内部処理) | `NotificationExtractor.buildRawJson()` | `StatusBarNotification` の全フィールドを直接読み取り prettyPrint JSON 文字列に変換。アプリ独自の加工データ（notificationType / signature / capturedAt）は含めず、OS 由来のデータのみを `raw_json` カラムに格納 |
 | 4 | ListenerService | Repository | `upsert(entity)` | Dispatchers.IO コルーチンで実行 |
 | 5 | Repository | 暗号化DB | `SELECT ... WHERE signature = :sig` | UNIQUE INDEX による高速検索 |
 | 6a | Repository | 暗号化DB | `INSERT INTO notifications` | 新規通知: receiveCount=1 |
