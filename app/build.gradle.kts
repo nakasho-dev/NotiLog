@@ -42,6 +42,24 @@ android {
         version = release(36)
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = System.getenv("NOTILOG_ANDROID_JKS_PATH")
+            val keystorePassword = System.getenv("NOTILOG_ANDROID_JKS_PASSWORD")
+            val alias = System.getenv("NOTILOG_ANDROID_JKS_ALIAS")
+            val keyPassword = System.getenv("NOTILOG_ANDROID_JKS_KEY_PASSWORD")
+
+            if (listOf(keystorePath, keystorePassword, alias, keyPassword).any { it.isNullOrBlank() }) {
+                throw GradleException("Signing env vars are missing.")
+            }
+
+            storeFile = file(keystorePath!!)
+            storePassword = keystorePassword
+            keyAlias = alias
+            this.keyPassword = keyPassword
+        }
+    }
+
     defaultConfig {
         applicationId = "org.ukky.notilog"
         minSdk = 29
@@ -50,16 +68,18 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        ksp {
-            arg("room.schemaLocation", "$projectDir/schemas")
-        }
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+        }
+
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -82,6 +102,10 @@ androidComponents.onVariants { variant ->
         generateAboutLibrariesRes,
         GenerateAboutLibrariesResTask::outputDir,
     )
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
