@@ -2,7 +2,9 @@ package org.ukky.notilog.data.repository
 
 import kotlinx.coroutines.flow.Flow
 import org.ukky.notilog.data.db.entity.NotificationEntity
+import org.ukky.notilog.data.db.entity.NotificationRawLogEntity
 import org.ukky.notilog.data.db.entity.NotificationWithTag
+import org.ukky.notilog.data.db.entity.RawLogWithTag
 
 /**
  * 通知データへのアクセスを抽象化するインターフェース。
@@ -23,11 +25,28 @@ interface NotificationRepository {
     suspend fun deleteAll()
     suspend fun getAllForBackup(): List<NotificationEntity>
     /**
-     * JSONL エクスポート用に通知一覧をタグ情報付きで取得する。
+     * JSONL エクスポート用に通知一覧をタグ情報付きで取得する（集約済み）。
      *
      * @param tag null の場合は全件、非 null の場合は指定タグでフィルタ
      */
     suspend fun getForExport(tag: String?): List<NotificationWithTag>
+    /**
+     * JSONL 生データエクスポート用に rawLog を受信順で取得する。
+     *
+     * @param tag null の場合は全件、非 null の場合は指定タグでフィルタ
+     */
+    suspend fun getForRawExport(tag: String?): List<RawLogWithTag>
+    /**
+     * バックアップ用に全 rawLog を取得する。
+     */
+    suspend fun getAllRawLogsForBackup(): List<NotificationRawLogEntity>
+    /**
+     * 保持期間を超えた古い rawLog を削除する。
+     *
+     * @param cutoffMillis この時刻より前のレコードを削除
+     * @return 削除件数
+     */
+    suspend fun cleanupOldRawLogs(cutoffMillis: Long): Int
     fun getDistinctPackageNames(): Flow<List<String>>
 }
 

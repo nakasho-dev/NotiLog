@@ -6,14 +6,13 @@ import org.junit.Before
 import org.junit.Test
 import org.ukky.notilog.data.db.entity.NotificationEntity
 import org.ukky.notilog.data.db.entity.NotificationWithTag
+import org.ukky.notilog.data.db.entity.RawLogWithTag
 import java.io.ByteArrayOutputStream
 
 /**
  * JsonlExporter の単体テスト。
  *
- * - JSONL 形式（1行1JSON）で出力されること
- * - タグあり / なし の両ケースで正しくシリアライズされること
- * - 空リストでも問題なく動作すること
+ * - 集約済みエクスポート（export）と生データエクスポート（exportRawLogs）の両方をテスト
  */
 class JsonlExporterTest {
 
@@ -25,7 +24,9 @@ class JsonlExporterTest {
         exporter = JsonlExporter()
     }
 
-    // ── 基本出力 ──────────────────────────────────────
+    // ══════════════════════════════════════════════════
+    //  集約済みエクスポート（export）
+    // ══════════════════════════════════════════════════
 
     @Test
     fun `空リストを渡すと空ファイルが出力される`() {
@@ -62,8 +63,6 @@ class JsonlExporterTest {
         val lines = out.toString(Charsets.UTF_8.name()).lines().filter { it.isNotEmpty() }
         assertEquals(2, lines.size)
     }
-
-    // ── フィールド検証 ──────────────────────────────────
 
     @Test
     fun `各フィールドが正しくシリアライズされる`() {
@@ -139,13 +138,10 @@ class JsonlExporterTest {
         exporter.export(listOf(item), out)
 
         val line = out.toString(Charsets.UTF_8.name()).trim()
-        // JSON として解析できること（例外が起きないこと）
         val exported = json.decodeFromString(JsonlExportItem.serializer(), line)
         assertNull(exported.title)
         assertNull(exported.text)
     }
-
-    // ── 出力エンコーディング ──────────────────────────────
 
     @Test
     fun `UTF-8でエンコードされている`() {
@@ -163,6 +159,96 @@ class JsonlExporterTest {
         assertTrue(content.contains("日本語通知タイトル"))
         assertTrue(content.contains("日本語テキスト"))
         assertTrue(content.contains("日本語タグ"))
+    }
+
+    // ══════════════════════════════════════════════════
+    //  生データエクスポート（exportRawLogs）
+    // ══════════════════════════════════════════════════
+
+    @Test
+    fun `rawLog空リストを渡すと空ファイルが出力される`() {
+        val out = ByteArrayOutputStream()
+        exporter.exportRawLogs(emptyList(), out)
+        assertEquals("", out.toString(Charsets.UTF_8.name()))
+    }
+
+    @Test
+    fun `rawLog_1件が1行のJSONとして出力される`() {
+        val item = RawLogWithTag(
+            rawJson = """{"packageName":"com.example","id":1}""",
+            receivedAt = 1000L,
+            packageName = "com.example",
+            notificationType = "local",
+            tag = "SNS",
+            appLabel = "ExampleApp",
+        )
+        val out = ByteArrayOutputStream()
+        exporter.exportRawLogs(listOf(item), out)
+
+        val lines = out.toString(Charsets.UTF_8.name()).lines().filter { it.isNotEmpty() }
+        assertEquals(1, lines.size)
+    }
+
+    @Test
+    fun `rawLog_各フィールドが正しくシリアライズされる`() {
+        val item = RawLogWithTag(
+            rawJson = """{"packageName":"com.test","id":42}""",
+            receivedAt = 1_234_567L,
+            packageName = "com.test",
+            notificationType = "remote_push",
+            tag = "テスト",
+            appLabel = "テストアプリ",
+        )
+        val out = ByteArrayOutputStream()
+        exporter.exportRawLogs(listOf(item), out)
+
+        val line = out.toString(Charsets.UTF_8.name()).trim()
+        val exported = json.decodeFromString(JsonlRawExportItem.serializer(), line)
+
+        assertEquals("""{"packageName":"com.test","id":42}""", exported.rawJson)
+        assertEquals(1_234_567L, exported.receivedAt)
+        assertEquals("com.test", exported.packageName)
+        assertEquals("remote_push", exported.notificationType)
+        assertEquals("テスト", exported.tag)
+        assertEquals("テストアプリ", exported.appLabel)
+    }
+
+    @Test
+    fun `rawLog_重複通知の受信順に出力される`() {
+        val items = listOf(
+            RawLogWithTag("""{"n":1}""", 1000L, "com.a", "local", null, null),
+            RawLogWithTag("""{"n":2}""", 2000L, "com.a", "local", null, null),
+            RawLogWithTag("""{"n":3}""", 3000L, "com.a", "local", null, null),
+        )
+        val out = ByteArrayOutputStream()
+        exporter.exportRawLogs(items, out)
+
+        val lines = out.toString(Charsets.UTF_8.name()).lines().filter { it.isNotEmpty() }
+        assertEquals(3, lines.size)
+        // 受信順の検証
+        val first = json.decodeFromString(JsonlRawExportItem.serializer(), lines[0])
+        val last = json.decodeFromString(JsonlRawExportItem.serializer(), lines[2])
+        assertEquals(1000L, first.receivedAt)
+        assertEquals(3000L, last.receivedAt)
+    }
+
+    @Test
+    fun `rawLog_タグなしの場合tagとappLabelはnull`() {
+        val item = RawLogWithTag(
+            rawJson = """{}""",
+            receivedAt = 1000L,
+            packageName = "com.noTag",
+            notificationType = "local",
+            tag = null,
+            appLabel = null,
+        )
+        val out = ByteArrayOutputStream()
+        exporter.exportRawLogs(listOf(item), out)
+
+        val line = out.toString(Charsets.UTF_8.name()).trim()
+        val exported = json.decodeFromString(JsonlRawExportItem.serializer(), line)
+        assertNull(exported.tag)
+        assertNull(exported.appLabel)
     }
 
     // ── ヘルパー ──────────────────────────────────────
@@ -204,4 +290,3 @@ class JsonlExporterTest {
         appLabel = appLabel,
     )
 }
-

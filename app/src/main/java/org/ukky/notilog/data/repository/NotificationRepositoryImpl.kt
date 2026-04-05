@@ -6,8 +6,11 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import org.ukky.notilog.data.db.dao.NotificationDao
+import org.ukky.notilog.data.db.dao.NotificationRawLogDao
 import org.ukky.notilog.data.db.entity.NotificationEntity
+import org.ukky.notilog.data.db.entity.NotificationRawLogEntity
 import org.ukky.notilog.data.db.entity.NotificationWithTag
+import org.ukky.notilog.data.db.entity.RawLogWithTag
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,6 +18,7 @@ import javax.inject.Singleton
 @Singleton
 class NotificationRepositoryImpl @Inject constructor(
     private val dao: NotificationDao,
+    private val rawLogDao: NotificationRawLogDao,
 ) : NotificationRepository {
 
     override fun getAllWithTag(): Flow<List<NotificationWithTag>> =
@@ -43,21 +47,40 @@ class NotificationRepositoryImpl @Inject constructor(
      * 重複判定付き保存（upsert）。
      *
      * 1. signature で既存チェック
-     * 2. 既存あり → receiveCount++ & lastReceivedAt 更新
-     * 3. 既存なし → INSERT
+     * 2. 既存あり → receiveCount++ & lastReceivedAt 更新 + rawLog INSERT
+     * 3. 既存なし → INSERT + rawLog INSERT
      */
     override suspend fun upsert(entity: NotificationEntity) {
         val existing = dao.findBySignature(entity.signature)
         if (existing != null) {
             dao.incrementCount(entity.signature, entity.lastReceivedAt)
+            // 重複通知でも受信ごとに rawLog を記録する
+            rawLogDao.insert(
+                NotificationRawLogEntity(
+                    notificationId = existing.id,
+                    rawJson = entity.rawJson,
+                    receivedAt = entity.lastReceivedAt,
+                )
+            )
         } else {
-            dao.insert(entity)
+            val newId = dao.insert(entity)
+            // 新規通知の rawLog を記録する
+            rawLogDao.insert(
+                NotificationRawLogEntity(
+                    notificationId = newId,
+                    rawJson = entity.rawJson,
+                    receivedAt = entity.firstReceivedAt,
+                )
+            )
         }
     }
 
     override suspend fun deleteById(id: Long) = dao.deleteById(id)
 
-    override suspend fun deleteAll() = dao.deleteAll()
+    override suspend fun deleteAll() {
+        rawLogDao.deleteAll()
+        dao.deleteAll()
+    }
 
     override suspend fun getAllForBackup(): List<NotificationEntity> =
         dao.getAllForBackup()
@@ -65,6 +88,16 @@ class NotificationRepositoryImpl @Inject constructor(
     override suspend fun getForExport(tag: String?): List<NotificationWithTag> =
         if (tag == null) dao.getAllWithTagList()
         else dao.getByTagList(tag)
+
+    override suspend fun getForRawExport(tag: String?): List<RawLogWithTag> =
+        if (tag == null) rawLogDao.getAllWithTagOrderByReceivedAt()
+        else rawLogDao.getByTagOrderByReceivedAt(tag)
+
+    override suspend fun getAllRawLogsForBackup(): List<NotificationRawLogEntity> =
+        rawLogDao.getAllForBackup()
+
+    override suspend fun cleanupOldRawLogs(cutoffMillis: Long): Int =
+        rawLogDao.deleteOlderThan(cutoffMillis)
 
     override fun getDistinctPackageNames(): Flow<List<String>> =
         dao.getDistinctPackageNames()
@@ -80,4 +113,3 @@ class NotificationRepositoryImpl @Inject constructor(
         append('%')
     }
 }
-

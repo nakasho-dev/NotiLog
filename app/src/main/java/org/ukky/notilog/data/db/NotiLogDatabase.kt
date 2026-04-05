@@ -6,22 +6,26 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import org.ukky.notilog.data.db.dao.AppTagDao
 import org.ukky.notilog.data.db.dao.NotificationDao
+import org.ukky.notilog.data.db.dao.NotificationRawLogDao
 import org.ukky.notilog.data.db.entity.AppTagEntity
 import org.ukky.notilog.data.db.entity.NotificationEntity
 import org.ukky.notilog.data.db.entity.NotificationFtsEntity
+import org.ukky.notilog.data.db.entity.NotificationRawLogEntity
 
 @Database(
     entities = [
         NotificationEntity::class,
         NotificationFtsEntity::class,
         AppTagEntity::class,
+        NotificationRawLogEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class NotiLogDatabase : RoomDatabase() {
     abstract fun notificationDao(): NotificationDao
     abstract fun appTagDao(): AppTagDao
+    abstract fun notificationRawLogDao(): NotificationRawLogDao
 
     companion object {
         /** v1 → v2: リモート/ローカル通知判定用カラムを追加 */
@@ -63,6 +67,45 @@ abstract class NotiLogDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "ALTER TABLE notifications ADD COLUMN raw_json TEXT NOT NULL DEFAULT '{}'"
+                )
+            }
+        }
+
+        /**
+         * v4 → v5: 受信ごとの生データ JSON 子テーブルを追加。
+         *
+         * - notification_raw_logs テーブルを CREATE
+         * - 既存の notifications.raw_json を notification_raw_logs へバックフィル
+         *   （raw_json が '{}' でないレコードのみ、first_received_at を received_at に使う）
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS notification_raw_logs (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        notification_id INTEGER NOT NULL,
+                        raw_json TEXT NOT NULL,
+                        received_at INTEGER NOT NULL,
+                        FOREIGN KEY (notification_id) REFERENCES notifications(id)
+                            ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_notification_raw_logs_notification_id ON notification_raw_logs(notification_id)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_notification_raw_logs_received_at ON notification_raw_logs(received_at)"
+                )
+                // 既存データのバックフィル
+                db.execSQL(
+                    """
+                    INSERT INTO notification_raw_logs (notification_id, raw_json, received_at)
+                    SELECT id, raw_json, first_received_at
+                    FROM notifications
+                    WHERE raw_json != '{}'
+                    """.trimIndent()
                 )
             }
         }

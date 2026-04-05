@@ -1,6 +1,6 @@
 # NotiLog 基本設計書
 
-> **バージョン**: 1.5  
+> **バージョン**: 1.6  
 > **最終更新**: 2026-04-05  
 > **対象プラットフォーム**: Android 10 (API 29) 以上
 
@@ -157,7 +157,9 @@
   - 通知リスナー権限の状態表示（有効 / 無効）+ 設定画面への誘導リンク
   - バックアップ: 「エクスポート」ボタン → パスワード入力 → SAF でファイル保存先選択
   - リストア: 「インポート」ボタン → SAF でファイル選択 → パスワード入力 → 復元
-  - **JSONLエクスポート**: タグドロップダウンで対象を選択（「すべて」または特定タグ）→ 「JSONLエクスポート」ボタン → SAF でファイル保存先選択
+  - **JSONLエクスポート（集約済み）**: タグドロップダウンで対象を選択（「すべて」または特定タグ）→ 「JSONLエクスポート（集約済み）」ボタン → SAF でファイル保存先選択
+  - **JSONLエクスポート（生データ・受信順）**: 上記のタグ選択を共有 → 「JSONLエクスポート（生データ・受信順）」ボタン → SAF でファイル保存先選択。`notification_raw_logs` テーブルから受信ごとの rawJson を受信時刻順に出力する
+  - **生データ保持期間**: ドロップダウンで rawLog の保持日数を選択（0=無制限, 7, 14, 30, 60, 90, 180, 365 日）。変更時に古い rawLog を即時削除
   - ログ全削除（確認ダイアログ付き）
   - **OSSライセンス**: 「OSSライセンス」ボタン → OSSライセンス画面へ遷移
   - アプリバージョン情報
@@ -193,7 +195,9 @@
 | F-12 | 通知種別分類 | **必須** | 受信通知を 7 種別に自動分類し、一覧・詳細画面で視覚表示 |
 | F-13 | JSON 生データ表示 | 推奨 | 通知詳細画面から遷移し、`StatusBarNotification` から直接ダンプした Android OS 由来の生データを整形 JSON でシンタックスハイライト表示。アプリ独自の加工データは含まない。クリップボードコピー機能付き |
 | F-14 | OSSライセンス表示 | 推奨 | 設定画面から遷移し、アプリが依存する全OSSライブラリのライセンス情報を一覧表示する。AboutLibraries（`com.mikepenz:aboutlibraries-compose-m3`）を利用し、Gradle プラグインがビルド時に依存関係を自動収集する |
-| F-15 | JSONL エクスポート | 推奨 | 設定画面から通知ログを JSON Lines（JSONL）形式で SAF 経由エクスポートする。全件エクスポートとタグによる絞り込みエクスポートに対応。`JsonlExporter` が 1 通知 = 1 行の JSON を UTF-8 で書き出す。暗号化なしのプレーンテキストのため、分析・加工用途を想定する |
+| F-15 | JSONL エクスポート（集約済み） | 推奨 | 設定画面から通知ログを JSON Lines（JSONL）形式で SAF 経由エクスポートする。全件エクスポートとタグによる絞り込みエクスポートに対応。`JsonlExporter` が 1 通知 = 1 行の JSON を UTF-8 で書き出す。暗号化なしのプレーンテキストのため、分析・加工用途を想定する |
+| F-16 | JSONL 生データエクスポート（受信順） | 推奨 | `notification_raw_logs` テーブルから受信ごとの生データ JSON を受信時刻順（ASC）に JSONL 形式で出力する。重複集約前の個々の通知データを含むため、通知トラフィックの時系列分析に適する。タグによる絞り込みにも対応 |
+| F-17 | 生データ保持期間設定 | 推奨 | `notification_raw_logs` の保持日数を設定画面から設定可能。0（無制限）〜365 日で選択。保持期間外の rawLog を即時削除し、ストレージ肥大化を抑制する |
 
 ### 4.2 通知キャプチャの詳細フロー
 
@@ -225,8 +229,10 @@
     ├─ NotificationRepository.upsert(entity)
     │   │
     │   ├─ [signature が既存] → receiveCount++, lastReceivedAt 更新
+    │   │   └─ notification_raw_logs に rawJson + receivedAt を INSERT
     │   │
     │   └─ [signature が未存在] → INSERT (receiveCount=1, firstReceivedAt=now)
+    │       └─ notification_raw_logs に rawJson + receivedAt を INSERT
     │
     └─ Room Flow が UI に自動通知
 ```
@@ -235,9 +241,10 @@
 
 - **署名（signature）生成**: `packageName`, `title`, `text`, `bigText`, `subText` を連結し SHA-256 ハッシュを計算
 - **判定**: `notifications` テーブルの `signature` カラム（UNIQUE INDEX）で一致を検索
-- **一致時**: `receiveCount` をインクリメントし、`lastReceivedAt` を現在時刻に更新
-- **不一致時**: 新規レコードとして INSERT
+- **一致時**: `receiveCount` をインクリメントし、`lastReceivedAt` を現在時刻に更新。`notification_raw_logs` に rawJson + receivedAt を INSERT
+- **不一致時**: 新規レコードとして INSERT。`notification_raw_logs` にも rawJson + receivedAt を INSERT
 - **`extras` は署名に含めない**: extras にはタイムスタンプ等の変動値が含まれるため、判定から除外する
+- **rawLog の保持**: 重複・新規いずれの場合も受信ごとの生データを `notification_raw_logs` に個別保存する。保持期間設定（F-17）により古い rawLog は自動削除される
 
 ### 4.4 通知種別分類ロジック（F-12）
 
@@ -388,15 +395,18 @@ org.ukky.notilog/
 │
 ├── data/
 │   ├── db/
-│   │   ├── NotiLogDatabase.kt         # @Database 定義
+│   │   ├── NotiLogDatabase.kt         # @Database 定義 (v5)
 │   │   ├── DatabaseProvider.kt        # SQLCipher SupportFactory 生成
 │   │   ├── entity/
 │   │   │   ├── NotificationEntity.kt  # 通知テーブル
 │   │   │   ├── NotificationFtsEntity.kt # FTS4 仮想テーブル
 │   │   │   ├── NotificationType.kt    # 通知種別 enum（7 種別）
+│   │   │   ├── NotificationRawLogEntity.kt # 受信ごとの生データ JSON 子テーブル（ON DELETE CASCADE）
+│   │   │   ├── RawLogWithTag.kt       # rawLog + タグ情報の POJO（JSONL 生データエクスポート用）
 │   │   │   └── AppTagEntity.kt        # アプリタグテーブル
 │   │   ├── dao/
 │   │   │   ├── NotificationDao.kt     # 通知 CRUD + FTS 検索
+│   │   │   ├── NotificationRawLogDao.kt # rawLog CRUD + エクスポート用クエリ
 │   │   │   └── AppTagDao.kt           # タグ CRUD
 │   │   └── converter/
 │   │       └── Converters.kt          # TypeConverter（Long↔Date 等）
@@ -456,7 +466,7 @@ org.ukky.notilog/
 │   └── BackupCrypto.kt                # バックアップファイルの AES-GCM 暗号化
 │
 ├── export/
-│   └── JsonlExporter.kt               # JSONL エクスポート（1通知 = 1行のJSON書き出し）
+│   └── JsonlExporter.kt               # JSONL エクスポート（集約済み + 生データ受信順の 2 モード）
 │
 └── util/
     ├── SignatureGenerator.kt           # SHA-256 ハッシュ生成
@@ -478,17 +488,27 @@ org.ukky.notilog/
 │ title            : Text?        │          │ app_label    : Text?     │
 │ text             : Text?        │          └──────────────────────────┘
 │ big_text         : Text?        │
-│ sub_text         : Text?        │
-│ ticker           : Text?        │          ┌──────────────────────────┐
-│ extras_json      : Text         │          │  notifications_fts       │
-│ raw_json         : Text         │          │  (FTS4 Virtual Table)    │
-│ signature        : Text (UNIQUE)│          ├──────────────────────────┤
-│ notification_type: Text         │          │ rowid → notifications.id │
-│ is_remote        : Int (非推奨) │          │ title    : Text          │
-│ receive_count    : Int          │          │ text     : Text          │
-│ first_received_at: Long         │          │ big_text : Text          │
-│ last_received_at : Long         │          │ sub_text : Text          │
-└─────────────────────────────────┘          └──────────────────────────┘
+│ sub_text         : Text?        │          ┌──────────────────────────┐
+│ ticker           : Text?        │          │  notifications_fts       │
+│ extras_json      : Text         │          │  (FTS4 Virtual Table)    │
+│ raw_json         : Text         │          ├──────────────────────────┤
+│ signature        : Text (UNIQUE)│          │ rowid → notifications.id │
+│ notification_type: Text         │          │ title    : Text          │
+│ is_remote        : Int (非推奨) │          │ text     : Text          │
+│ receive_count    : Int          │          │ big_text : Text          │
+│ first_received_at: Long         │          │ sub_text : Text          │
+│ last_received_at : Long         │          └──────────────────────────┘
+└────────────┬────────────────────┘
+             │ 1:N (CASCADE)
+             ▼
+┌──────────────────────────────────┐
+│    notification_raw_logs         │
+├──────────────────────────────────┤
+│ id              : Long (PK, AI)  │
+│ notification_id : Long (FK,INDEX)│──▶ notifications.id
+│ raw_json        : Text           │
+│ received_at     : Long (INDEX)   │
+└──────────────────────────────────┘
 ```
 
 ### 6.2 テーブル定義
@@ -522,7 +542,7 @@ org.ukky.notilog/
 
 #### 6.2.1a マイグレーション履歴
 
-現在の DB バージョンは **v4**。以下のマイグレーションパスが定義されている。
+現在の DB バージョンは **v5**。以下のマイグレーションパスが定義されている。
 
 | パス | 内容 |
 |---|---|
@@ -530,6 +550,7 @@ org.ukky.notilog/
 | **v2 → v3** | `notification_type TEXT NOT NULL DEFAULT 'local'` カラムを追加。`is_remote=1` の既存レコードを `notification_type='remote_push'` にバックフィル |
 | **v1 → v3** | v1 から直接 v3 へ移行。`is_remote` と `notification_type` を一括追加（バックフィル不要 — v1 にはリモート判定データなし） |
 | **v3 → v4** | `raw_json TEXT NOT NULL DEFAULT '{}'` カラムを追加。通知受信時の生データ JSON 保存用 |
+| **v4 → v5** | `notification_raw_logs` テーブルを CREATE（外部キー `notification_id` → `notifications.id` ON DELETE CASCADE）。既存の `notifications.raw_json` が `'{}'` でないレコードを `notification_raw_logs` にバックフィル |
 
 #### 6.2.2 `notifications_fts` — 全文検索用 FTS4 仮想テーブル
 
@@ -556,6 +577,26 @@ data class NotificationFtsEntity(
 ```
 
 **トークナイザ選定理由**: `unicode61` は Unicode を扱えるため日本語を含む通知でも FTS4 を適用しやすい。一方で短い語句や 1 文字検索は端末実装や MATCH 解釈により期待どおりヒットしない場合があるため、本アプリでは FTS4 を優先しつつ `LIKE` による部分一致検索をフォールバックとして併用する。
+
+#### 6.2.2a `notification_raw_logs` — 受信ごとの生データ JSON テーブル
+
+通知受信のたびに `StatusBarNotification` から直接ダンプした生データ JSON を 1 行ずつ記録する子テーブル。重複通知（signature 一致）でも受信ごとに個別の行を保持するため、集約前の全通知トラフィックを時系列で追跡できる。
+
+| カラム名 | 型 | 制約 | 説明 |
+|---|---|---|---|
+| `id` | Long | PRIMARY KEY, AUTOINCREMENT | 一意な rawLog ID |
+| `notification_id` | Long | NOT NULL, INDEX, FK → notifications.id (CASCADE) | 親通知の ID |
+| `raw_json` | Text | NOT NULL | 受信時の生データ JSON（`NotificationExtractor.buildRawJson()` の出力） |
+| `received_at` | Long | NOT NULL, INDEX | 受信時刻（Unix millis） |
+
+**外部キー制約**:
+- `notification_id` → `notifications.id` ON DELETE CASCADE — 親通知の削除時に rawLog も自動削除
+
+**インデックス**:
+- `index_notification_raw_logs_notification_id` ON `notification_id` — 親通知との結合高速化
+- `index_notification_raw_logs_received_at` ON `received_at` — 受信順ソートの高速化
+
+**保持期間**: 設定画面から 0（無制限）〜 365 日で保持日数を設定可能。保持期間外の rawLog は `deleteOlderThan(cutoffMillis)` で即時削除される（F-17）。
 
 #### 6.2.3 `app_tags` — アプリタグテーブル
 
@@ -621,9 +662,41 @@ UPDATE notifications
 SET receive_count = receive_count + 1,
     last_received_at = :now
 WHERE signature = :signature
+-- + rawLog 記録（既存の notification_id に紐付け）
+INSERT INTO notification_raw_logs (notification_id, raw_json, received_at)
+VALUES (:existing_id, :rawJson, :now)
 
 -- 既存なし → 挿入
 INSERT INTO notifications (...) VALUES (...)
+-- + rawLog 記録（新規 notification_id に紐付け）
+INSERT INTO notification_raw_logs (notification_id, raw_json, received_at)
+VALUES (:new_id, :rawJson, :now)
+```
+
+#### rawLog 保持期間クリーンアップ
+```sql
+DELETE FROM notification_raw_logs WHERE received_at < :cutoffMillis
+```
+
+#### rawLog エクスポート（受信順・全件）
+```sql
+SELECT r.raw_json, r.received_at, n.package_name, n.notification_type,
+       a.tag, a.app_label
+FROM notification_raw_logs r
+INNER JOIN notifications n ON r.notification_id = n.id
+LEFT JOIN app_tags a ON n.package_name = a.package_name
+ORDER BY r.received_at ASC
+```
+
+#### rawLog エクスポート（受信順・タグフィルタ）
+```sql
+SELECT r.raw_json, r.received_at, n.package_name, n.notification_type,
+       a.tag, a.app_label
+FROM notification_raw_logs r
+INNER JOIN notifications n ON r.notification_id = n.id
+INNER JOIN app_tags a ON n.package_name = a.package_name
+WHERE a.tag = :tag
+ORDER BY r.received_at ASC
 ```
 
 #### 通知実績アプリ一覧（タグ管理用）

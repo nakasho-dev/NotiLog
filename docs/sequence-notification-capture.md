@@ -60,6 +60,11 @@ Android OS          ListenerService         Repository            暗号化DB   
     │                     │                     │  (FTS インデックス)  │                  │
     │                     │                     │────────────────────▶│                  │
     │                     │                     │                     │                  │
+    │                     │                     │  INSERT INTO        │                  │
+    │                     │                     │  notification_raw_  │                  │
+    │                     │                     │  logs (rawJson)     │                  │
+    │                     │                     │────────────────────▶│                  │
+    │                     │                     │                     │                  │
     │                     │                     │         OK          │                  │
     │                     │                     │◀────────────────────│                  │
     │                     │                     │                     │                  │
@@ -102,6 +107,11 @@ Android OS          ListenerService         Repository            暗号化DB   
     │                     │                     │  receive_count + 1, │                  │
     │                     │                     │  last_received_at   │                  │
     │                     │                     │  = now              │                  │
+    │                     │                     │────────────────────▶│                  │
+    │                     │                     │                     │                  │
+    │                     │                     │  INSERT INTO        │                  │
+    │                     │                     │  notification_raw_  │                  │
+    │                     │                     │  logs (rawJson)     │                  │
     │                     │                     │────────────────────▶│                  │
     │                     │                     │                     │                  │
     │                     │                     │         OK          │                  │
@@ -155,12 +165,16 @@ sequenceDiagram
 
         REPO->>DB: INSERT INTO notifications_fts<br/>(title, text, bigText, subText)
 
+        REPO->>DB: INSERT INTO notification_raw_logs<br/>(notification_id, rawJson, receivedAt)
+
         DB-->>REPO: OK
 
     else signature が既存（重複通知）
         DB-->>REPO: 既存レコード
 
         REPO->>DB: UPDATE notifications SET<br/>receive_count = receive_count + 1,<br/>last_received_at = :now<br/>WHERE signature = :sig
+
+        REPO->>DB: INSERT INTO notification_raw_logs<br/>(notification_id, rawJson, receivedAt)
 
         DB-->>REPO: OK
     end
@@ -225,6 +239,7 @@ sequenceDiagram
 | 5 | Repository | 暗号化DB | `SELECT ... WHERE signature = :sig` | UNIQUE INDEX による高速検索 |
 | 6a | Repository | 暗号化DB | `INSERT INTO notifications` | 新規通知: receiveCount=1 |
 | 6b | Repository | 暗号化DB | `UPDATE notifications SET receive_count + 1` | 重複通知: カウントと時刻を更新 |
+| 6c | Repository | 暗号化DB | `INSERT INTO notification_raw_logs` | 新規・重複いずれの場合も受信ごとに rawJson + receivedAt を記録 |
 | 7 | 暗号化DB | UI | `Flow<List<NotificationEntity>>` emit | Room の invalidation tracker が変更を検知し自動発火 |
 | 8 | UI | (内部処理) | Compose 再コンポジション | `collectAsStateWithLifecycle()` で Flow を State に変換 |
 

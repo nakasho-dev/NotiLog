@@ -4,10 +4,11 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class BackupData(
-    val version: Int = 1,
+    val version: Int = 2,
     val exportedAt: Long,
     val notifications: List<NotificationBackupItem>,
     val tags: List<TagBackupItem>,
+    val rawLogs: List<RawLogBackupItem> = emptyList(),
 )
 
 @Serializable
@@ -33,3 +34,14 @@ data class TagBackupItem(
     val appLabel: String?,
 )
 
+/**
+ * 受信ごとの生データ JSON のバックアップ用モデル。
+ *
+ * [notificationSignature] で親 notification と紐付ける（復元時に id は変わるため）。
+ */
+@Serializable
+data class RawLogBackupItem(
+    val notificationSignature: String,
+    val rawJson: String,
+    val receivedAt: Long,
+)

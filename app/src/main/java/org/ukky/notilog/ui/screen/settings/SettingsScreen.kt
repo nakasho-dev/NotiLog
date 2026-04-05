@@ -55,6 +55,12 @@ fun SettingsScreen(
         if (uri != null) viewModel.exportJsonl(context, uri, currentSelectedExportTag)
     }
 
+    val rawJsonlExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/x-ndjson")
+    ) { uri ->
+        if (uri != null) viewModel.exportRawJsonl(context, uri, currentSelectedExportTag)
+    }
+
     // 通知リスナー権限の確認
     val listenerEnabled = remember(Unit) {
         val flat = Secure.getString(context.contentResolver, "enabled_notification_listeners") ?: ""
@@ -155,8 +161,35 @@ fun SettingsScreen(
                         enabled = !state.isJsonlExporting,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(if (state.isJsonlExporting) "エクスポート中…" else "JSONLエクスポート")
+                        Text(if (state.isJsonlExporting) "エクスポート中…" else "JSONLエクスポート（集約済み）")
                     }
+
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { rawJsonlExportLauncher.launch("notilog_raw_export.jsonl") },
+                        enabled = !state.isRawJsonlExporting,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(if (state.isRawJsonlExporting) "エクスポート中…" else "JSONLエクスポート（生データ・受信順）")
+                    }
+                }
+            }
+
+            // ── 生データ保持期間 ────
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("生データ保持期間", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "受信ごとの生データ（rawLog）の保持日数を設定します。古いデータは自動削除されます。0 = 無制限。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    RetentionDaysSelector(
+                        currentDays = state.rawLogRetentionDays,
+                        onDaysSelected = { viewModel.setRawLogRetentionDays(it) },
+                    )
                 }
             }
 
@@ -309,5 +342,50 @@ private fun TagFilterDropdown(
 private sealed interface PasswordDialogMode {
     data class Export(val uri: android.net.Uri) : PasswordDialogMode
     data class Import(val uri: android.net.Uri) : PasswordDialogMode
+}
+
+/**
+ * rawLog 保持期間の選択 UI。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RetentionDaysSelector(
+    currentDays: Int,
+    onDaysSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val options = listOf(0, 7, 14, 30, 60, 90, 180, 365)
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier,
+    ) {
+        OutlinedTextField(
+            value = if (currentDays == 0) "無制限" else "${currentDays}日",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("保持期間") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { days ->
+                DropdownMenuItem(
+                    text = { Text(if (days == 0) "無制限" else "${days}日") },
+                    onClick = {
+                        onDaysSelected(days)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
 }
 

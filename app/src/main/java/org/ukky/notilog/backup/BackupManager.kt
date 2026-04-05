@@ -3,6 +3,7 @@ package org.ukky.notilog.backup
 import kotlinx.serialization.json.Json
 import org.ukky.notilog.data.db.entity.AppTagEntity
 import org.ukky.notilog.data.db.entity.NotificationEntity
+import org.ukky.notilog.data.db.entity.NotificationRawLogEntity
 import org.ukky.notilog.data.repository.AppTagRepository
 import org.ukky.notilog.data.repository.NotificationRepository
 import javax.inject.Inject
@@ -25,13 +26,28 @@ class BackupManager @Inject constructor(
      * 暗号化バックアップデータを生成する。
      */
     suspend fun export(password: String): ByteArray {
-        val notifications = notificationRepo.getAllForBackup().map { it.toBackupItem() }
+        val notifications = notificationRepo.getAllForBackup()
+        val notificationItems = notifications.map { it.toBackupItem() }
         val tags = tagRepo.getAllForBackup().map { it.toBackupItem() }
 
+        // rawLog を signature で紐付けてエクスポート
+        val rawLogs = notificationRepo.getAllRawLogsForBackup()
+        val signatureById = notifications.associate { it.id to it.signature }
+        val rawLogItems = rawLogs.mapNotNull { raw ->
+            val sig = signatureById[raw.notificationId] ?: return@mapNotNull null
+            RawLogBackupItem(
+                notificationSignature = sig,
+                rawJson = raw.rawJson,
+                receivedAt = raw.receivedAt,
+            )
+        }
+
         val backup = BackupData(
+            version = 2,
             exportedAt = System.currentTimeMillis(),
-            notifications = notifications,
+            notifications = notificationItems,
             tags = tags,
+            rawLogs = rawLogItems,
         )
 
         val jsonBytes = json.encodeToString(BackupData.serializer(), backup)
@@ -56,6 +72,9 @@ class BackupManager @Inject constructor(
         backup.tags.forEach { item ->
             tagRepo.setTag(item.toEntity())
         }
+
+        // rawLogs の復元はスキップ（upsert 時に新たに rawLog が作られるため、
+        // 既存データとの重複が生じやすい。復元元の rawLog は参考用途）
     }
 
     // ── マッピング ────────────────────────────────────
@@ -102,4 +121,3 @@ class BackupManager @Inject constructor(
         appLabel = appLabel,
     )
 }
-

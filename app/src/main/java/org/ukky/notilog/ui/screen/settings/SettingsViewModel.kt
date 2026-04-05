@@ -21,6 +21,8 @@ data class SettingsUiState(
     val isExporting: Boolean = false,
     val isImporting: Boolean = false,
     val isJsonlExporting: Boolean = false,
+    val isRawJsonlExporting: Boolean = false,
+    val rawLogRetentionDays: Int = 30,
     val message: String? = null,
 )
 
@@ -71,11 +73,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     /**
-     * 通知ログを JSONL 形式でエクスポートする。
-     *
-     * @param context ContentResolver 取得用コンテキスト
-     * @param uri SAF が返す保存先 URI
-     * @param tag null の場合は全件、非 null の場合は指定タグのみ
+     * 通知ログを JSONL 形式でエクスポートする（集約済み）。
      */
     fun exportJsonl(context: Context, uri: Uri, tag: String?) {
         viewModelScope.launch {
@@ -94,6 +92,49 @@ class SettingsViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     isJsonlExporting = false,
                     message = "JSONLエクスポート失敗: ${e.message}",
+                )
+            }
+        }
+    }
+
+    /**
+     * 受信ごとの生データを JSONL 形式でエクスポートする（受信順）。
+     */
+    fun exportRawJsonl(context: Context, uri: Uri, tag: String?) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isRawJsonlExporting = true, message = null)
+            try {
+                val items = notificationRepo.getForRawExport(tag)
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    jsonlExporter.exportRawLogs(items, out)
+                }
+                val suffix = if (tag != null) "（タグ: $tag）" else "（全件）"
+                _uiState.value = _uiState.value.copy(
+                    isRawJsonlExporting = false,
+                    message = "生データJSONLエクスポート完了$suffix: ${items.size}件",
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isRawJsonlExporting = false,
+                    message = "生データJSONLエクスポート失敗: ${e.message}",
+                )
+            }
+        }
+    }
+
+    /**
+     * rawLog の保持期間を設定する。
+     *
+     * @param days 保持日数（0 = 無制限）
+     */
+    fun setRawLogRetentionDays(days: Int) {
+        _uiState.value = _uiState.value.copy(rawLogRetentionDays = days)
+        if (days > 0) {
+            viewModelScope.launch {
+                val cutoff = System.currentTimeMillis() - days.toLong() * 24 * 60 * 60 * 1000
+                val deleted = notificationRepo.cleanupOldRawLogs(cutoff)
+                _uiState.value = _uiState.value.copy(
+                    message = "保持期間を${days}日に設定しました（${deleted}件の古い生データを削除）",
                 )
             }
         }
