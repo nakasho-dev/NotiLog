@@ -63,12 +63,12 @@
 
 # ========== Navigation Compose (Route sealed class / object) ==========
 # シリアライゼーション経由で使われるルートクラスを保持
--keep class org.ukky.notilog.ui.navigation.** { *; }
+-keep class org.ukky.notitrace.ui.navigation.** { *; }
 
-# ========== NotiLog アプリ固有クラス ==========
+# ========== NotiTrace アプリ固有クラス ==========
 # Room エンティティ（フィールド名がカラム名に対応）
--keep class org.ukky.notilog.data.db.entity.** { *; }
+-keep class org.ukky.notitrace.data.db.entity.** { *; }
 # バックアップデータ（Kotlinx Serialization で直列化）
--keep class org.ukky.notilog.backup.** { *; }
+-keep class org.ukky.notitrace.backup.** { *; }
 # 通知タイプ enum
--keepclassmembers enum org.ukky.notilog.** { *; }
+-keepclassmembers enum org.ukky.notitrace.** { *; }

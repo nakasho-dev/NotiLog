@@ -1,4 +1,4 @@
-# NotiLog
+# NotiTrace
 
 > **Android 端末に届くすべての通知を、安全にローカル記録するプライバシーファースト通知ログアプリ**
 
@@ -51,7 +51,7 @@ Data Layer (Room + SQLCipher / FTS4)
 
 ## 📦 通知種別の自動分類
 
-NotiLog は受信した通知を以下の 7 種別にヒューリスティクスで自動分類します：
+NotiTrace は受信した通知を以下の 7 種別にヒューリスティクスで自動分類します：
 
 | 種別 | アイコン | 判定条件 |
 |---|---|---|
@@ -94,8 +94,8 @@ NotiLog は受信した通知を以下の 7 種別にヒューリスティクス
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/your-username/NotiLog.git
-cd NotiLog
+git clone https://github.com/your-username/NotiTrace.git
+cd NotiTrace
 
 # デバッグビルド
 ./gradlew assembleDebug
@@ -109,12 +109,12 @@ cd NotiLog
 ## 📁 プロジェクト構成
 
 ```
-app/src/main/java/org/ukky/notilog/
-├── NotiLogApplication.kt          # @HiltAndroidApp
+app/src/main/java/org/ukky/notitrace/
+├── NotiTraceApplication.kt          # @HiltAndroidApp
 ├── MainActivity.kt                # Single Activity
 ├── data/
 │   ├── db/
-│   │   ├── NotiLogDatabase.kt     # Room Database (v5)
+│   │   ├── NotiTraceDatabase.kt     # Room Database (v5)
 │   │   ├── DatabaseProvider.kt    # SQLCipher 暗号化 DB 提供
 │   │   ├── entity/
 │   │   │   ├── NotificationEntity.kt
@@ -128,10 +128,10 @@ app/src/main/java/org/ukky/notilog/
 │   └── crypto/
 │       └── KeyStoreManager.kt
 ├── service/
-│   └── NotiLogListenerService.kt  # 通知キャプチャ
+│   └── NotiTraceListenerService.kt  # 通知キャプチャ
 ├── ui/
 │   ├── navigation/
-│   │   ├── NotiLogNavGraph.kt     # Navigation Compose
+│   │   ├── NotiTraceNavGraph.kt     # Navigation Compose
 │   │   └── Route.kt              # ルート定義
 │   ├── screen/                    # 各画面 (Compose)
 │   │   ├── detail/

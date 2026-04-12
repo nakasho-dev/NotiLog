@@ -3,7 +3,7 @@
           xmlns:tools="http://schemas.android.com/tools">
 
     <application
-            android:name=".NotiLogApplication"
+            android:name=".NotiTraceApplication"
             android:allowBackup="false"
             android:dataExtractionRules="@xml/data_extraction_rules"
             android:fullBackupContent="false"
@@ -11,14 +11,14 @@
             android:label="@string/app_name"
             android:roundIcon="@mipmap/ic_launcher_round"
             android:supportsRtl="true"
-            android:theme="@style/Theme.NotiLog">
+            android:theme="@style/Theme.NotiTrace">
 
         <!-- メインActivity -->
         <activity
                 android:name=".MainActivity"
                 android:exported="true"
                 android:label="@string/app_name"
-                android:theme="@style/Theme.NotiLog">
+                android:theme="@style/Theme.NotiTrace">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -27,7 +27,7 @@
 
         <!-- 通知リスナーサービス -->
         <service
-                android:name=".service.NotiLogListenerService"
+                android:name=".service.NotiTraceListenerService"
                 android:exported="true"
                 android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>

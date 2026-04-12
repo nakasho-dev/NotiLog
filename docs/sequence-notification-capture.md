@@ -139,7 +139,7 @@ Android OS          ListenerService         Repository            暗号化DB   
 sequenceDiagram
     autonumber
     participant OS as Android OS
-    participant SVC as NotiLogListenerService
+    participant SVC as NotiTraceListenerService
     participant REPO as NotificationRepository
     participant DB as 暗号化DB<br/>(Room + SQLCipher)
     participant UI as Jetpack Compose UI
@@ -208,7 +208,7 @@ sequenceDiagram
     alt 初回起動（パスフレーズ未生成）
         SP-->>DP: null
         DP->>DP: SecureRandom で<br/>ランダムパスフレーズ生成
-        DP->>KS: AES-256-GCM 鍵を生成<br/>(alias: "notilog_db_key")
+        DP->>KS: AES-256-GCM 鍵を生成<br/>(alias: "notitrace_db_key")
         KS-->>DP: SecretKey
         DP->>KS: パスフレーズを暗号化
         KS-->>DP: 暗号文 (iv + ciphertext + tag)
@@ -221,7 +221,7 @@ sequenceDiagram
 
     DP->>SC: SupportFactory(passphrase)
     SC-->>DP: 暗号化 DB インスタンス
-    DP-->>REPO: NotiLogDatabase
+    DP-->>REPO: NotiTraceDatabase
 ```
 
 ---

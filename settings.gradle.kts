@@ -22,6 +22,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "NotiLog"
+rootProject.name = "NotiTrace"
 include(":app")
  

@@ -37,17 +37,17 @@ val generateAboutLibrariesRes by tasks.registering(GenerateAboutLibrariesResTask
 }
 
 android {
-    namespace = "org.ukky.notilog"
+    namespace = "org.ukky.notitrace"
     compileSdk {
         version = release(36)
     }
 
     signingConfigs {
         create("release") {
-            val keystorePath = System.getenv("NOTILOG_ANDROID_JKS_PATH")
-            val keystorePassword = System.getenv("NOTILOG_ANDROID_JKS_PASSWORD")
-            val alias = System.getenv("NOTILOG_ANDROID_JKS_ALIAS")
-            val keyPassword = System.getenv("NOTILOG_ANDROID_JKS_KEY_PASSWORD")
+            val keystorePath = System.getenv("NOTITRACE_ANDROID_JKS_PATH")
+            val keystorePassword = System.getenv("NOTITRACE_ANDROID_JKS_PASSWORD")
+            val alias = System.getenv("NOTITRACE_ANDROID_JKS_ALIAS")
+            val keyPassword = System.getenv("NOTITRACE_ANDROID_JKS_KEY_PASSWORD")
 
             if (listOf(keystorePath, keystorePassword, alias, keyPassword).any { it.isNullOrBlank() }) {
                 throw GradleException("Signing env vars are missing.")
@@ -61,7 +61,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "org.ukky.notilog"
+        applicationId = "org.ukky.notitrace"
         minSdk = 29
         targetSdk = 36
         versionCode = 4

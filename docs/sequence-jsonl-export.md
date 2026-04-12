@@ -18,7 +18,7 @@ sequenceDiagram
     participant SAF as Storage Access Framework
 
     User->>SettingsScreen: タグ選択「すべて」のまま<br/>「JSONLエクスポート（集約済み）」ボタンタップ
-    SettingsScreen->>SAF: CreateDocument("notilog_export.jsonl")
+    SettingsScreen->>SAF: CreateDocument("notitrace_export.jsonl")
     SAF-->>User: ファイル保存先選択ダイアログ表示
     User->>SAF: 保存先を選択して確定
     SAF-->>SettingsScreen: 保存先 URI を返却
@@ -69,7 +69,7 @@ sequenceDiagram
 
     User->>SettingsScreen: ドロップダウンで「SNS」を選択
     User->>SettingsScreen: 「JSONLエクスポート（集約済み）」ボタンタップ
-    SettingsScreen->>SAF: CreateDocument("notilog_export.jsonl")
+    SettingsScreen->>SAF: CreateDocument("notitrace_export.jsonl")
     SAF-->>User: ファイル保存先選択ダイアログ表示
     User->>SAF: 保存先を選択して確定
     SAF-->>SettingsScreen: 保存先 URI を返却
@@ -107,7 +107,7 @@ sequenceDiagram
     participant SAF as Storage Access Framework
 
     User->>SettingsScreen: タグ選択（すべて or 特定タグ）<br/>「JSONLエクスポート（生データ・受信順）」ボタンタップ
-    SettingsScreen->>SAF: CreateDocument("notilog_raw_export.jsonl")
+    SettingsScreen->>SAF: CreateDocument("notitrace_raw_export.jsonl")
     SAF-->>User: ファイル保存先選択ダイアログ表示
     User->>SAF: 保存先を選択して確定
     SAF-->>SettingsScreen: 保存先 URI を返却
@@ -215,7 +215,7 @@ sequenceDiagram
 
 | 項目 | 詳細 |
 |---|---|
-| **暗号化なし** | JSONL エクスポートはプレーンテキストである。バックアップ用途には既存の暗号化バックアップ（`notilog_backup.bin`）を使用すること |
+| **暗号化なし** | JSONL エクスポートはプレーンテキストである。バックアップ用途には既存の暗号化バックアップ（`notitrace_backup.bin`）を使用すること |
 | **SAF 経由** | ファイル保存はすべて Storage Access Framework 経由。アプリはファイルシステムへの直接アクセスを行わない |
 | **集約済みエクスポートに extras_json / raw_json は含まない** | プライバシー上の配慮から、集約済み JSONL に生 extras データおよび raw_json は含めない |
 | **生データエクスポートには rawJson を含む** | 生データエクスポートは受信ごとの `rawJson`（Android OS 由来の通知データ）を含む。デバッグ・分析用途を想定 |
